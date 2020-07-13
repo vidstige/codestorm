@@ -12,14 +12,33 @@ TAU = 2 * np.pi
 class Simulation:
     def __init__(self):
         self.t = 0
-        #self.positions = np.empty((0, 2))
-        n = 10
-        self.positions = np.random.rand(n, 2) * 100
+        self.positions = np.empty((0, 2))
+        self.identifiers = []
+        self.masses = np.empty((0, 1))
         self.springs = []
+
+    def add_body(self, position, identity, mass=1):
+        assert position.shape[1] == self.positions.shape[1]
+        self.identifiers.append(identity)
+        self.positions = np.vstack((self.positions, position))
+        self.masses = np.vstack((self.masses, mass))
+        return identity
     
-    def add_spring(self, i, j, length, stiffness=1):
+    def index_of(self, identity) -> int:
+        return self.identifiers.index(identity)
+
+    def remove_body(self, identity) -> None:
+        i = self.index_of(identity)
+        del i
+        # 1. assert no springs are used
+        # 2. swap last and i
+        # 3. remove last element
+
+    def add_spring(self, a, b, length, stiffness=1, t=None) -> None:
         """Adds a spring"""
-        self.springs.append((i, j, length, stiffness, self.t))
+        i = self.index_of(a)
+        j = self.index_of(b)
+        self.springs.append((i, j, length, stiffness, t or self.t))
 
     def velocities(self, positions, t: float):
         # compute spring forces
@@ -93,6 +112,7 @@ class Renderer:
         self.output.write(surface.get_data())
 
 
+
 # or using an access token
 with open('.token') as f:
     token = f.read().strip()
@@ -105,21 +125,44 @@ with open('.token') as f:
 #reconstruction = g.get_repo("Volumental/Reconstruction")
 #commits = reconstruction.get_commits()
 
-simulation = Simulation()
-simulation.add_spring(1, 2, 20)
-simulation.add_spring(3, 4, 20)
-simulation.add_spring(5, 6, 20)
+def main():
+    simulation = Simulation()
+    for i in range(20):
+        simulation.add_body(np.random.rand(1, 2) * 200, i)
+    
+    simulation.add_spring(1, 2, 20)
+    simulation.add_spring(3, 4, 20)
+    simulation.add_spring(5, 6, 20)
 
-renderer = Renderer(
-    sys.stdout.buffer,
-    simulation,
-    (320, 200),
-    bg=(1, 1, 1))
+    renderer = Renderer(
+        sys.stdout.buffer,
+        simulation,
+        (320, 200),
+        bg=(1, 1, 1))
+    
+    # maps filenames to tuples of simulation index and timestamp
+    files = {}
+    # maps filenames to tuples of simulation index and timestamp
+    authors = {}
 
-for _ in range(200):
-    simulation.step(dt=0.1)
-    renderer.render()
+    #for commit in commits:
+        # if not initialized:
+        # initialize to commit.date - 1 day
+        # simulate and render until commit.date
+        # add files or update timestamp
+        # add authors or update timestamps
+        # add spring forces or update timestamps
+        # prune old spring forces
+        # prune old files
+        # prune old authors
+
+    for _ in range(200):
+        simulation.step(dt=0.1)
+        renderer.render()
 
 #for commit in itertools.islice(commits, 10):
 #    for f in commit.files:
 #        print(dir(f))
+
+if __name__ == "__main__":
+    main()
