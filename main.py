@@ -16,15 +16,19 @@ class Simulation:
         n = 10
         self.positions = np.random.rand(n, 2) * 100
         self.springs = []
+    
+    def add_spring(self, i, j, length, stiffness=1):
+        """Adds a spring"""
+        self.springs.append((i, j, length, stiffness, self.t))
 
     def velocities(self, positions, t: float):
         # compute spring forces
 
         v = np.zeros(positions.shape)
         # find indices annd lengths
-        ii = [i for i, _, _ in self.springs]
-        jj = [j for _, j, _ in self.springs]
-        ll = [l for _, _, l in self.springs]
+        ii = [spring[0] for spring in self.springs]
+        jj = [spring[1] for spring in self.springs]
+        ll = [spring[2] for spring in self.springs]
         stiffness = 1
         mass = 1
     
@@ -93,18 +97,19 @@ class Renderer:
 with open('.token') as f:
     token = f.read().strip()
 
-g = Github(token)
+#g = Github(token)
 
 #volumental = g.get_organization("Volumental")
 #for repo in volumental.get_repos():
 #    print(repo)
-reconstruction = g.get_repo("Volumental/Reconstruction")
-commits = reconstruction.get_commits()
+#reconstruction = g.get_repo("Volumental/Reconstruction")
+#commits = reconstruction.get_commits()
 
 simulation = Simulation()
-simulation.springs.append((3, 4, 20))
-simulation.springs.append((1, 2, 20))
-simulation.springs.append((5, 6, 20))
+simulation.add_spring(1, 2, 20)
+simulation.add_spring(3, 4, 20)
+simulation.add_spring(5, 6, 20)
+
 renderer = Renderer(
     sys.stdout.buffer,
     simulation,
