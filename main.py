@@ -153,8 +153,7 @@ import pickle
 import os
 
 def load_commits(directory):
-    import os
-
+    """Returns all commits in date order from commit repository"""
     for path in sorted(directory.iterdir(), key=os.path.getmtime):
         with path.open('rb') as f:
             commit = pickle.load(f)
@@ -162,7 +161,14 @@ def load_commits(directory):
 
 from datetime import datetime
 
+def last_modified(commit) -> datetime:
+    return datetime.strptime(
+        commit.last_modified,
+        '%a, %d %b %Y %H:%M:%S %Z')
+
+
 def download_commits(directory, repo_slug):
+    """Downloads all commits into commit-cache"""
     with open('.token') as f:
         token = f.read().strip()
 
@@ -182,18 +188,17 @@ def download_commits(directory, repo_slug):
         if not path.exists():
             with path.open('wb') as f:
                 pickle.dump(commit, f, protocol=pickle.HIGHEST_PROTOCOL)
-            date = datetime.strptime(
-                commit.last_modified,
-                '%a, %d %b %Y %H:%M:%S %Z')
-            ts = date.timestamp()
+            ts = last_modified(commit).timestamp()
             os.utime(str(path), (ts, ts))
 
 
 def main():
     from pathlib import Path
     commit_cache = Path("commit-cache/")
-    download_commits(commit_cache, "Volumental/Reconstruction")
-    #commits = load_commits(commit_cache)
+    #download_commits(commit_cache, "Volumental/Reconstruction")
+    commits = load_commits(commit_cache)
+    for commit in commits:
+        print(commit.sha)
     #codestorm(commits)
     
 
