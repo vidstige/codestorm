@@ -112,20 +112,7 @@ class Renderer:
         self.output.write(surface.get_data())
 
 
-
-# or using an access token
-with open('.token') as f:
-    token = f.read().strip()
-
-#g = Github(token)
-
-#volumental = g.get_organization("Volumental")
-#for repo in volumental.get_repos():
-#    print(repo)
-#reconstruction = g.get_repo("Volumental/Reconstruction")
-#commits = reconstruction.get_commits()
-
-def main():
+def codestorm(commits):
     simulation = Simulation()
     for i in range(20):
         simulation.add_body(np.random.rand(1, 2) * 200, i)
@@ -145,7 +132,8 @@ def main():
     # maps filenames to tuples of simulation index and timestamp
     authors = {}
 
-    #for commit in commits:
+    for commit in commits:
+        pass
         # if not initialized:
         # initialize to commit.date - 1 day
         # simulate and render until commit.date
@@ -157,12 +145,57 @@ def main():
         # prune old authors
 
     for _ in range(200):
-        simulation.step(dt=0.1)
+        simulation.step(dt=0.05)
         renderer.render()
 
-#for commit in itertools.islice(commits, 10):
-#    for f in commit.files:
-#        print(dir(f))
+
+import pickle
+import os
+
+def load_commits(directory):
+    import os
+
+    for path in sorted(directory.iterdir(), key=os.path.getmtime):
+        with path.open('rb') as f:
+            commit = pickle.load(f)
+        yield commit
+
+from datetime import datetime
+
+def download_commits(directory, repo_slug):
+    with open('.token') as f:
+        token = f.read().strip()
+
+    g = Github(token)
+
+    #volumental = g.get_organization("Volumental")
+    #for repo in volumental.get_repos():
+    #    print(repo)
+
+    repo = g.get_repo(repo_slug)
+    commits = repo.get_commits()
+
+    for commit in commits:
+        path = directory / commit.sha
+        print(path)
+
+        if not path.exists():
+            with path.open('wb') as f:
+                pickle.dump(commit, f, protocol=pickle.HIGHEST_PROTOCOL)
+            date = datetime.strptime(
+                commit.last_modified,
+                '%a, %d %b %Y %H:%M:%S %Z')
+            ts = date.timestamp()
+            os.utime(str(path), (ts, ts))
+
+
+def main():
+    from pathlib import Path
+    commit_cache = Path("commit-cache/")
+    download_commits(commit_cache, "Volumental/Reconstruction")
+    #commits = load_commits(commit_cache)
+    #codestorm(commits)
+    
 
 if __name__ == "__main__":
     main()
