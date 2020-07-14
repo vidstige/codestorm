@@ -44,9 +44,9 @@ class Simulation:
         # compute spring forces
 
         v = np.zeros(positions.shape)
-        # find indices annd lengths
-        ii = [spring[0] for spring in self.springs]
-        jj = [spring[1] for spring in self.springs]
+        # find indices and lengths
+        ii = [self.index_of(spring[0]) for spring in self.springs]
+        jj = [self.index_of(spring[1]) for spring in self.springs]
         ll = [spring[2] for spring in self.springs]
         stiffness = 1
         mass = 1
@@ -132,8 +132,8 @@ def codestorm(commits):
     # maps filenames to tuples of simulation index and timestamp
     authors = {}
 
-    for commit in commits:
-        pass
+    #for commit in commits:
+    #    pass
         # if not initialized:
         # initialize to commit.date - 1 day
         # simulate and render until commit.date
@@ -197,9 +197,9 @@ def main():
     commit_cache = Path("commit-cache/")
     #download_commits(commit_cache, "Volumental/Reconstruction")
     commits = load_commits(commit_cache)
-    for commit in commits:
-        print(commit.sha)
-    #codestorm(commits)
+    #for commit in commits:
+    #    print(commit.sha)
+    codestorm(commits)
     
 
 if __name__ == "__main__":
