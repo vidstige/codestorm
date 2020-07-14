@@ -1,4 +1,4 @@
-import itertools
+from datetime import datetime, timedelta
 import sys
 
 from github import Github
@@ -16,6 +16,9 @@ class Simulation:
         self.identifiers = []
         self.masses = np.empty((0, 1))
         self.springs = []
+
+    def set_time(self, t):
+        self.t = t
 
     def add_body(self, position, identity, mass=1):
         assert position.shape[1] == self.positions.shape[1]
@@ -79,6 +82,18 @@ class Simulation:
         self.t += dt
 
 
+class TickSimulation(Simulation):
+    def __init__(self, tick_length: timedelta):
+        self.tick_length = tick_length
+        super().__init__()
+
+    def set_time(self, time: datetime):
+        super().set_time(time.timestamp() / self.tick_length.total_seconds())
+
+    def step(self, dt: timedelta):
+        super().step(dt.total_seconds() / self.tick_length.total_seconds())
+
+
 def clear(target: cairo.ImageSurface, color=(1, 1, 1)) -> None:
     r, g, b = color
     ctx = cairo.Context(target)
@@ -113,7 +128,7 @@ class Renderer:
 
 
 def codestorm(commits):
-    simulation = Simulation()
+    simulation = TickSimulation(timedelta(seconds=1))
     for i in range(20):
         simulation.add_body(np.random.rand(1, 2) * 200, i)
     
@@ -132,11 +147,18 @@ def codestorm(commits):
     # maps filenames to tuples of simulation index and timestamp
     authors = {}
 
-    #for commit in commits:
-    #    pass
-        # if not initialized:
-        # initialize to commit.date - 1 day
+    for commit in commits:
+        # initialize time if needed
+        if simulation.t == 0:
+            time = last_modified(commit)
+            commit_date = last_modified(commit)
+            simulation.set_time(commit_date - timedelta(days=1))
+
         # simulate and render until commit.date
+        while simulation.t < commit_date.timestamp():
+            simulation.step(dt=timedelta(seconds=0.1))
+            renderer.render()
+        
         # add files or update timestamp
         # add authors or update timestamps
         # add spring forces or update timestamps
@@ -144,9 +166,9 @@ def codestorm(commits):
         # prune old files
         # prune old authors
 
-    for _ in range(200):
-        simulation.step(dt=0.05)
-        renderer.render()
+    #for _ in range(200):
+    #    simulation.step(dt=0.05)
+    #    renderer.render()
 
 
 import pickle
@@ -159,7 +181,6 @@ def load_commits(directory):
             commit = pickle.load(f)
         yield commit
 
-from datetime import datetime
 
 def last_modified(commit) -> datetime:
     return datetime.strptime(
@@ -199,7 +220,7 @@ def main():
     #for commit in commits:
     #    print(commit.sha)
     codestorm(commits)
-    
+
 
 if __name__ == "__main__":
     main()
