@@ -195,7 +195,6 @@ def download_commits(directory, repo_slug):
 def main():
     from pathlib import Path
     commit_cache = Path("commit-cache/")
-    #download_commits(commit_cache, "Volumental/Reconstruction")
     commits = load_commits(commit_cache)
     #for commit in commits:
     #    print(commit.sha)
