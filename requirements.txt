@@ -1,0 +1,5 @@
+numpy==1.19.0
+pycairo==1.19.1
+PyGithub==1.51
+
+pylint==2.5.3
