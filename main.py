@@ -90,6 +90,9 @@ class TickSimulation(Simulation):
     def set_time(self, time: datetime):
         super().set_time(time.timestamp() / self.tick_length.total_seconds())
 
+    def get_time(self) -> datetime:
+        return datetime.fromtimestamp(self.t * self.tick_length.total_seconds())
+
     def step(self, dt: timedelta):
         super().step(dt.total_seconds() / self.tick_length.total_seconds())
 
@@ -123,6 +126,12 @@ class Renderer:
             ctx.move_to(x, y)
             ctx.arc(x, y, 5, 0, TAU)
             ctx.fill()
+        
+        # overlay
+        ctx.set_source_rgb(0, 0, 0)
+        ctx.move_to(8, 24)
+        ctx.set_font_size(16)
+        ctx.show_text(self.simulation.get_time().isoformat())
 
         self.output.write(surface.get_data())
 
@@ -150,7 +159,6 @@ def codestorm(commits):
     for commit in commits:
         # initialize time if needed
         if simulation.t == 0:
-            time = last_modified(commit)
             commit_date = last_modified(commit)
             simulation.set_time(commit_date - timedelta(days=1))
 
