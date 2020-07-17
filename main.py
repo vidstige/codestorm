@@ -131,19 +131,37 @@ class Renderer:
         ctx.set_source_rgb(0, 0, 0)
         ctx.move_to(8, 24)
         ctx.set_font_size(16)
-        ctx.show_text(self.simulation.get_time().isoformat())
+        ctx.show_text(self.simulation.get_time().isoformat(' ', timespec='seconds'))
 
         self.output.write(surface.get_data())
 
 
+def lazy_merge(a, b):
+    """Lazily merges two iterables and produces a new one without"""
+    ai = iter(a)
+    bi = iter(b)
+
+    aa = next(ai)
+    bb = next(bi)
+
+    while True:        
+        while aa <= bb:
+            yield aa
+            aa = next(ai)
+        
+        while bb <= aa:
+            yield bb
+            bb = next(bi)
+
+
 def codestorm(commits):
-    simulation = TickSimulation(timedelta(seconds=1))
-    for i in range(20):
-        simulation.add_body(np.random.rand(1, 2) * 200, i)
+    simulation = TickSimulation(timedelta(days=1))
+    #for i in range(20):
+    #    simulation.add_body(np.random.rand(1, 2) * 200, i)
     
-    simulation.add_spring(1, 2, 20)
-    simulation.add_spring(3, 4, 20)
-    simulation.add_spring(5, 6, 20)
+    #simulation.add_spring(1, 2, 20)
+    #simulation.add_spring(3, 4, 20)
+    #simulation.add_spring(5, 6, 20)
 
     renderer = Renderer(
         sys.stdout.buffer,
@@ -164,7 +182,7 @@ def codestorm(commits):
 
         # simulate and render until commit.date
         while simulation.t < commit_date.timestamp():
-            simulation.step(dt=timedelta(seconds=0.1))
+            simulation.step(dt=timedelta(days=0.05))
             renderer.render()
         
         # add files or update timestamp
