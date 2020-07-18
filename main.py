@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import itertools
 import sys
 
 from github import Github
@@ -154,6 +155,14 @@ def lazy_merge(a, b):
             bb = next(bi)
 
 
+def steady(start, timestep):
+    """Returns infinite iterator with evenly spaced timestamps"""
+    t = start
+    while True:
+        yield t
+        t += timestep
+
+
 def codestorm(commits):
     simulation = TickSimulation(timedelta(days=1))
     #for i in range(20):
@@ -174,27 +183,37 @@ def codestorm(commits):
     # maps filenames to tuples of simulation index and timestamp
     authors = {}
 
-    for commit in commits:
-        # initialize time if needed
-        if simulation.t == 0:
-            commit_date = last_modified(commit)
-            simulation.set_time(commit_date - timedelta(days=1))
+    # find start time
+    commit_iterator = iter(commits)
+    first = next(commit_iterator)
+    commit_iterator = itertools.chain([first], commit_iterator)
 
-        # simulate and render until commit.date
-        while simulation.t < commit_date.timestamp():
-            simulation.step(dt=timedelta(days=0.05))
-            renderer.render()
+    # create frame generator
+    start_time = last_modified(first) - timedelta(days=1)
+    commit_timestamps = ((last_modified(c), c) for c in commits)
+    frame_timestamps = ((timestamp, None) for timestamp in steady(start_time, timedelta(days=8)))
+
+    simulation.set_time(start_time)
+
+    timestep = timedelta(days=0.1)
+    for timestamp, commit in lazy_merge(commit_timestamps, frame_timestamps):            
+        # simulate until timestamp
+        while timestamp - simulation.get_time() > timestep:
+            simulation.step(dt=timestep)
+        # time left is smaller than timestep
+        simulation.step(dt=timestamp - simulation.get_time())
         
-        # add files or update timestamp
-        # add authors or update timestamps
-        # add spring forces or update timestamps
-        # prune old spring forces
-        # prune old files
-        # prune old authors
-
-    #for _ in range(200):
-    #    simulation.step(dt=0.05)
-    #    renderer.render()
+        if commit:
+            pass
+            # add files or update timestamp
+            # add authors or update timestamps
+            # add spring forces or update timestamps
+            # prune old spring forces
+            # prune old files
+            # prune old authors
+        else:
+            # this is a frame
+            renderer.render()
 
 
 import pickle
