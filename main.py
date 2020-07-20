@@ -16,7 +16,7 @@ class Simulation:
         self.positions = np.empty((0, 2))
         self.identifiers = []
         self.masses = np.empty((0, 1))
-        self.springs = []
+        self.springs = {}
 
     def set_time(self, t):
         self.t = t
@@ -38,21 +38,21 @@ class Simulation:
         # 2. swap last and i
         # 3. remove last element
 
-    def add_spring(self, a, b, length, stiffness=1, t=None) -> None:
+    def add_spring(self, identifier, a, b, length, stiffness=1, t=None) -> None:
         """Adds a spring"""
         i = self.index_of(a)
         j = self.index_of(b)
-        self.springs.append((i, j, length, stiffness, t or self.t))
+        self.springs[identifier] = (i, j, length, stiffness, t or self.t)
 
     def velocities(self, positions, t: float):
         # compute spring forces
 
         v = np.zeros(positions.shape)
         # find indices and lengths
-        ii = [spring[0] for spring in self.springs]
-        jj = [spring[1] for spring in self.springs]
-        ll = [spring[2] for spring in self.springs]
-        stiffness = 1
+        ii = [spring[0] for spring in self.springs.values()]
+        jj = [spring[1] for spring in self.springs.values()]
+        ll = [spring[2] for spring in self.springs.values()]
+        ss = [spring[3] for spring in self.springs.values()]
         mass = 1
     
         # compute deltas
@@ -63,7 +63,7 @@ class Simulation:
         norms = np.linalg.norm(di, axis=-1)
 
         # compute force magnitudes
-        forces = (norms - ll) * stiffness
+        forces = (norms - ll) * np.array(ss)
 
         # compute accelerations and accumulate
         v[ii] += (di / norms[:, None]) * forces[:, None] / mass
@@ -168,15 +168,10 @@ def steady(start, timestep):
         yield t
         t += timestep
 
+import os
 
 def codestorm(commits):
     simulation = TickSimulation(timedelta(days=1))
-    #for i in range(20):
-    #    simulation.add_body(np.random.rand(1, 2) * 200, i)
-    
-    #simulation.add_spring(1, 2, 20)
-    #simulation.add_spring(3, 4, 20)
-    #simulation.add_spring(5, 6, 20)
 
     renderer = Renderer(
         sys.stdout.buffer,
@@ -197,7 +192,7 @@ def codestorm(commits):
     # create frame generator
     start_time = last_modified(first) - timedelta(days=1)
     commit_timestamps = ((last_modified(c), c) for c in commits)
-    frame_timestamps = ((timestamp, None) for timestamp in steady(start_time, timedelta(days=8)))
+    frame_timestamps = ((timestamp, None) for timestamp in steady(start_time, timedelta(days=0.5)))
 
     simulation.set_time(start_time)
 
@@ -210,22 +205,30 @@ def codestorm(commits):
         simulation.step(dt=timestamp - simulation.get_time())
 
         if commit:
+            if commit.committer is None:
+                # why is htis needed?
+                continue
+
             # Add body for author (if needed) and update timestamp
-            author = commit.author
+            author = commit.committer.login
             if author not in simulation:
                 simulation.add_body(np.random.rand(1, 2) - 0.5, author)
             authors[author] = simulation.get_time()
             
             # Add body for file (if needed) and update timestamp
             for phile in commit.files or tuple():
-                filename = phile.filename
-                if author not in simulation:
+                filename = os.path.basename(phile.filename)
+                if filename not in simulation:
                     simulation.add_body(np.random.rand(1, 2) - 0.5, filename)
                     files[filename] = simulation.get_time()
 
                 # spring id
                 sid = '{author}-{filename}'.format(author=author, filename=filename)
-                
+                if sid not in simulation.springs:
+                    #print(simulation.identifiers, file=sys.stderr)
+                    #print(sid, author, filename, file=sys.stderr)
+                    simulation.add_spring(
+                        sid, author, filename, 0.1, 0.01)
         
             # add spring forces or update timestamps
             # prune old spring forces
@@ -282,9 +285,8 @@ def download_commits(directory, repo_slug):
 def main():
     from pathlib import Path
     commit_cache = Path("commit-cache/")
+    #download_commits(commit_cache, 'Volumental/Reconstruction')
     commits = load_commits(commit_cache)
-    #for commit in commits:
-    #    print(commit.sha)
     codestorm(commits)
 
 
