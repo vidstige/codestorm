@@ -193,6 +193,10 @@ def codestorm(commits):
     authors = {}
     springs = {}
 
+    # render properties
+    author_properties = RenderProperties(color=(1, 0, 0), radius=4)
+    file_properties = RenderProperties(color=(0, 0.7, 0.6), radius=3)
+
     # find start time
     commit_iterator = iter(commits)
     first = next(commit_iterator)
@@ -222,6 +226,7 @@ def codestorm(commits):
             author = commit.committer.login
             if author not in simulation:
                 simulation.add_body(np.random.rand(1, 2) - 0.5, author)
+                renderer.properties[author] = author_properties
             authors[author] = simulation.get_time()
             
             # Add body for file (if needed) and update timestamp
@@ -229,6 +234,7 @@ def codestorm(commits):
                 filename = os.path.basename(phile.filename)
                 if filename not in simulation:
                     simulation.add_body(np.random.rand(1, 2) - 0.5, filename)
+                    renderer.properties[filename] = file_properties
                     files[filename] = simulation.get_time()
 
                 # spring id
