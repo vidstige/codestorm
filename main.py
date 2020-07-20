@@ -33,16 +33,25 @@ class Simulation:
 
     def remove_body(self, identity) -> None:
         i = self.index_of(identity)
-        del i
-        # 1. assert no springs are used
+        # 1. assert no springs are in use
+        assert not any(i == spring[0] or i == spring[1] for spring in self.springs.values())
         # 2. swap last and i
+        self.identifiers[i], self.identifiers[-1] = self.identifiers[-1], self.identifiers[i]
+        self.positions[i], self.positions[-1] = self.positions[-1], self.positions[i]
+        self.masses[i], self.masses[-1] = self.masses[-1], self.masses[i]
         # 3. remove last element
+        del self.identifiers[-1]
+        del self.positions[-1]
+        del self.masses[-1]
 
-    def add_spring(self, identifier, a, b, length, stiffness=1, t=None) -> None:
+    def add_spring(self, identifier, a, b, length, stiffness=1) -> None:
         """Adds a spring"""
         i = self.index_of(a)
         j = self.index_of(b)
-        self.springs[identifier] = (i, j, length, stiffness, t or self.t)
+        self.springs[identifier] = (i, j, length, stiffness)
+
+    def remove_spring(self, identifier):
+        del self.springs[identifier]
 
     def velocities(self, positions, t: float):
         # compute spring forces
@@ -203,7 +212,7 @@ def codestorm(commits):
     commit_iterator = itertools.chain([first], commit_iterator)
 
     # create frame generator
-    start_time = last_modified(first) - timedelta(days=1)
+    start_time = last_modified(first) - timedelta(days=3)
     commit_timestamps = ((last_modified(c), c) for c in commits)
     frame_timestamps = ((timestamp, None) for timestamp in steady(start_time, timedelta(days=0.5)))
 
@@ -240,17 +249,15 @@ def codestorm(commits):
                 # spring id
                 sid = '{author}-{filename}'.format(author=author, filename=filename)
                 if sid not in simulation.springs:
-                    #print(simulation.identifiers, file=sys.stderr)
-                    #print(sid, author, filename, file=sys.stderr)
                     simulation.add_spring(
-                        sid, author, filename, 0.1, 0.01)
+                        sid, author, filename, 0.2, 0.05)
         
             # add spring forces or update timestamps
             # prune old spring forces
             # prune old files
             # prune old authors
         else:
-            # this is a frame
+            # this is a frame, just render it
             renderer.render()
 
 
