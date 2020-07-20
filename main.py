@@ -112,26 +112,35 @@ def clear(target: cairo.ImageSurface, color=(1, 1, 1)) -> None:
     ctx.fill()
 
 
+class RenderProperties:
+    def __init__(self, color, radius):
+        self.color = color
+        self.radius = radius
+
+
 class Renderer:
+    default_properties = RenderProperties((0.42, 0.22, 1), 3)
+
     def __init__(self, output, simulation, resolution, bg=(0, 0, 0)):
         self.output = output
         self.simulation = simulation
         width, height = resolution
         self.surface = cairo.ImageSurface(cairo.Format.RGB24, width, height)
         self.bg = bg
+        self.properties = {}
     
     def render(self):
         surface = self.surface
         
         ctx = cairo.Context(surface)
-        ctx.set_source_rgb(0.42, 0.22, 1)
         #w, h = surface.get_width(), surface.get_height()
 
         clear(surface, color=self.bg)
         
-        for x, y in self.simulation.positions:
-            #ctx.move_to(160 + x * 160, 100 + y * 100)
-            ctx.arc(160 + x * 160, 100 + y * 100, 5, 0, TAU)
+        for identifier, (x, y) in zip(self.simulation.identifiers, self.simulation.positions):
+            properties = self.properties.get(identifier, self.default_properties)
+            ctx.set_source_rgb(*properties.color)
+            ctx.arc(160 + x * 160, 100 + y * 100, properties.radius, 0, TAU)
             ctx.fill()
         
         # overlay
