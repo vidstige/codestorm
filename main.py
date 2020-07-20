@@ -49,8 +49,8 @@ class Simulation:
 
         v = np.zeros(positions.shape)
         # find indices and lengths
-        ii = [self.index_of(spring[0]) for spring in self.springs]
-        jj = [self.index_of(spring[1]) for spring in self.springs]
+        ii = [spring[0] for spring in self.springs]
+        jj = [spring[1] for spring in self.springs]
         ll = [spring[2] for spring in self.springs]
         stiffness = 1
         mass = 1
@@ -82,6 +82,12 @@ class Simulation:
         self.positions = p + (k1 + 2 * k2 + 2 * k3 + k4) / 6
         self.t += dt
 
+    def __contains__(self, identifier) -> bool:
+        try:
+            self.index_of(identifier)
+            return True
+        except ValueError:
+            return False
 
 class TickSimulation(Simulation):
     def __init__(self, tick_length: timedelta):
@@ -124,8 +130,8 @@ class Renderer:
         clear(surface, color=self.bg)
         
         for x, y in self.simulation.positions:
-            ctx.move_to(x, y)
-            ctx.arc(x, y, 5, 0, TAU)
+            #ctx.move_to(160 + x * 160, 100 + y * 100)
+            ctx.arc(160 + x * 160, 100 + y * 100, 5, 0, TAU)
             ctx.fill()
         
         # overlay
@@ -178,10 +184,10 @@ def codestorm(commits):
         (320, 200),
         bg=(1, 1, 1))
     
-    # maps filenames to tuples of simulation index and timestamp
+    # maps identifiers to timestamps
     files = {}
-    # maps filenames to tuples of simulation index and timestamp
     authors = {}
+    springs = {}
 
     # find start time
     commit_iterator = iter(commits)
@@ -202,11 +208,25 @@ def codestorm(commits):
             simulation.step(dt=timestep)
         # time left is smaller than timestep
         simulation.step(dt=timestamp - simulation.get_time())
-        
+
         if commit:
-            pass
-            # add files or update timestamp
-            # add authors or update timestamps
+            # Add body for author (if needed) and update timestamp
+            author = commit.author
+            if author not in simulation:
+                simulation.add_body(np.random.rand(1, 2) - 0.5, author)
+            authors[author] = simulation.get_time()
+            
+            # Add body for file (if needed) and update timestamp
+            for phile in commit.files or tuple():
+                filename = phile.filename
+                if author not in simulation:
+                    simulation.add_body(np.random.rand(1, 2) - 0.5, filename)
+                    files[filename] = simulation.get_time()
+
+                # spring id
+                sid = '{author}-{filename}'.format(author=author, filename=filename)
+                
+        
             # add spring forces or update timestamps
             # prune old spring forces
             # prune old files
@@ -249,9 +269,10 @@ def download_commits(directory, repo_slug):
 
     for commit in commits:
         path = directory / commit.sha
-        print(path)
 
         if not path.exists():
+            print(path)
+            list(commit.files)  # trigger loading of files
             with path.open('wb') as f:
                 pickle.dump(commit, f, protocol=pickle.HIGHEST_PROTOCOL)
             ts = last_modified(commit).timestamp()
