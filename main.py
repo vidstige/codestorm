@@ -1,5 +1,7 @@
+import argparse
 from datetime import datetime, timedelta
 import itertools
+from pathlib import Path
 import sys
 
 from github import Github
@@ -292,6 +294,8 @@ def download_commits(directory, repo_slug):
     repo = g.get_repo(repo_slug)
     commits = repo.get_commits()
 
+    directory.mkdir(parents=True, exist_ok=True)
+
     for commit in commits:
         path = directory / commit.sha
 
@@ -304,12 +308,31 @@ def download_commits(directory, repo_slug):
             os.utime(str(path), (ts, ts))
 
 
+def add_bool_arg(parser, name: str, default=False):
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument('--{}'.format(name), dest=name, action='store_true')
+    group.add_argument('--no-{}'.format(name), dest=name, action='store_false')
+    parser.set_defaults(**{name: default})
+
+
 def main():
-    from pathlib import Path
-    commit_cache = Path("commit-cache/")
-    #download_commits(commit_cache, 'Volumental/Reconstruction')
-    commits = load_commits(commit_cache)
-    codestorm(commits)
+    parser = argparse.ArgumentParser(description='codestorm')
+    parser.add_argument(
+        '--cache', type=Path, default=Path("commit-cache/"))
+    parser.add_argument(
+        '--download', metavar='repos', type=str, nargs='+',
+        help='downloads')
+    add_bool_arg(parser, 'render', True)
+
+    args = parser.parse_args()
+
+    commit_cache = args.cache
+    for repo_slug in args.download:
+        download_commits(commit_cache, repo_slug)
+
+    if args.render:
+        commits = load_commits(commit_cache)
+        codestorm(commits)
 
 
 if __name__ == "__main__":
