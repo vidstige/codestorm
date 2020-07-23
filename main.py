@@ -320,14 +320,14 @@ def main():
     parser.add_argument(
         '--cache', type=Path, default=Path("commit-cache/"))
     parser.add_argument(
-        '--download', metavar='repos', type=str, nargs='+',
+        '--download', metavar='repos', type=str, nargs='*',
         help='downloads')
     add_bool_arg(parser, 'render', True)
 
     args = parser.parse_args()
 
     commit_cache = args.cache
-    for repo_slug in args.download:
+    for repo_slug in args.download or []:
         download_commits(commit_cache, repo_slug)
 
     if args.render:
