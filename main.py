@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime, timedelta
 import itertools
+import os
 from pathlib import Path
 import sys
 
@@ -263,8 +264,55 @@ def codestorm(commits):
             renderer.render()
 
 
+## serialization stuff
+def split(s: str, separators: str='\t\n ', escape='\\'):
+    """Splits a string by separators"""
+    result = []
+    token = ''
+    in_escape = False
+    for c in s:
+        if not in_escape:
+            if c == escape:
+                in_escape = True
+            elif c in separators:
+                result.append(token)
+                token = ''
+            else:
+                token += c
+        elif in_escape:
+            token += c
+            in_escape = False
+    result.append(token)
+    return result
+
+
+def esacpe(data: str):
+    translation = str.maketrans({
+        "-":  r"\-",
+        "]":  r"\]",
+        "\\": r"\\",
+        "^":  r"\^",
+        "$":  r"\$",
+        "*":  r"\*",
+        ".":  r"\."})
+    return data.translate(translation)
+
+
+def unesacpe(data: str):
+    translation = {
+        r"\-": "-",
+        r"\]": "]",
+        r"\\": "\\",
+        r"\^": "^",
+        r"\$": "$",
+        r"\*": "*",
+        r"\.": "."}
+    for old, new in translation.items():
+        data = data.replace(old, new)
+    return data
+
+
 import pickle
-import os
 
 def load_commits(directory):
     """Returns all commits in date order from commit repository"""
