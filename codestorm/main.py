@@ -9,7 +9,7 @@ from github import Github
 import cairo
 import numpy as np
 
-from codestorm.storage import DirectoryStorage
+from codestorm.storage import DirectoryStorage, SQLiteStorage, Commit
 
 
 TAU = 2 * np.pi
@@ -217,25 +217,26 @@ def codestorm(commits):
     commit_iterator = itertools.chain([first], commit_iterator)
 
     # create frame generator
-    start_time = last_modified(first) - timedelta(days=3)
+    render_instruction = Commit(None, None, None, None)
+    start_time = last_modified(first) - timedelta(days=2)
     commit_timestamps = ((last_modified(c), c) for c in commits)
-    frame_timestamps = ((timestamp, None) for timestamp in steady(start_time, timedelta(days=0.5)))
+    frame_timestamps = ((timestamp, render_instruction) for timestamp in steady(start_time, timedelta(days=0.5)))
 
     simulation.set_time(start_time)
 
     timestep = timedelta(days=0.1)
     for timestamp, commit in lazy_merge(commit_timestamps, frame_timestamps):            
+        #print(timestamp, commit, file=sys.stderr)
         # simulate until timestamp
         while timestamp - simulation.get_time() > timestep:
             simulation.step(dt=timestep)
         # time left is smaller than timestep
         simulation.step(dt=timestamp - simulation.get_time())
 
-        if commit:
-            if commit.committer is None:
-                # why is htis needed?
-                continue
-
+        if commit == render_instruction:
+            # this is a frame, just render it
+            renderer.render()
+        else:
             # Add body for author (if needed) and update timestamp
             author = commit.committer.login
             if author not in simulation:
@@ -261,9 +262,6 @@ def codestorm(commits):
             # prune old spring forces
             # prune old files
             # prune old authors
-        else:
-            # this is a frame, just render it
-            renderer.render()
 
 
 def last_modified(commit) -> datetime:
@@ -306,13 +304,17 @@ def main():
 
     args = parser.parse_args()
 
-    storage = DirectoryStorage(args.cache)
+    #storage = DirectoryStorage(args.cache)
+    storage = SQLiteStorage('commits.db')
+
     for repo_slug in args.download or []:
         download_commits(storage, repo_slug)
 
     if args.render:
         commits = storage.commits()
         codestorm(commits)
+        #for commit in commits:
+        #    print(commit.sha)
 
 
 if __name__ == "__main__":

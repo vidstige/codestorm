@@ -3,3 +3,4 @@ __pycache__/
 .token
 output.raw
 commit-cache/
+commits.db
