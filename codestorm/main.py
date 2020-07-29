@@ -9,6 +9,8 @@ from github import Github
 import cairo
 import numpy as np
 
+from codestorm.storage import DirectoryStorage
+
 
 TAU = 2 * np.pi
 
@@ -312,15 +314,6 @@ def unesacpe(data: str):
     return data
 
 
-import pickle
-
-def load_commits(directory):
-    """Returns all commits in date order from commit repository"""
-    for path in sorted(directory.iterdir(), key=os.path.getmtime):
-        with path.open('rb') as f:
-            commit = pickle.load(f)
-        yield commit
-
 
 def last_modified(commit) -> datetime:
     return datetime.strptime(
@@ -328,32 +321,20 @@ def last_modified(commit) -> datetime:
         '%a, %d %b %Y %H:%M:%S %Z')
 
 
-def download_commits(directory, repo_slug):
+def download_commits(storage, repo_slug):
     """Downloads all commits into commit-cache"""
     with open('.token') as f:
         token = f.read().strip()
 
     g = Github(token)
 
-    #volumental = g.get_organization("Volumental")
-    #for repo in volumental.get_repos():
-    #    print(repo)
-
     repo = g.get_repo(repo_slug)
     commits = repo.get_commits()
 
-    directory.mkdir(parents=True, exist_ok=True)
-
     for commit in commits:
-        path = directory / commit.sha
-
-        if not path.exists():
-            print(path)
-            list(commit.files)  # trigger loading of files
-            with path.open('wb') as f:
-                pickle.dump(commit, f, protocol=pickle.HIGHEST_PROTOCOL)
-            ts = last_modified(commit).timestamp()
-            os.utime(str(path), (ts, ts))
+        if commit not in storage:
+            print(commit.sha)
+            storage.store(commit)
 
 
 def add_bool_arg(parser, name: str, default=False):
@@ -374,12 +355,12 @@ def main():
 
     args = parser.parse_args()
 
-    commit_cache = args.cache
+    storage = DirectoryStorage(args.cache)
     for repo_slug in args.download or []:
-        download_commits(commit_cache, repo_slug)
+        download_commits(storage, repo_slug)
 
     if args.render:
-        commits = load_commits(commit_cache)
+        commits = storage.commits()
         codestorm(commits)
 
 
