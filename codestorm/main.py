@@ -5,10 +5,10 @@ import os
 from pathlib import Path
 import sys
 
-from github import Github
 import cairo
 import numpy as np
 
+from codestorm.fetch import GithubAPI
 from codestorm.storage import DirectoryStorage, SQLiteStorage, Commit
 
 
@@ -270,21 +270,6 @@ def last_modified(commit) -> datetime:
         '%a, %d %b %Y %H:%M:%S %Z')
 
 
-def download_commits(storage, repo_slug):
-    """Downloads all commits into commit-cache"""
-    with open('.token') as f:
-        token = f.read().strip()
-
-    g = Github(token)
-
-    repo = g.get_repo(repo_slug)
-    commits = repo.get_commits()
-
-    for commit in commits:
-        if commit not in storage:
-            print(commit.sha)
-            storage.store(commit)
-
 
 def add_bool_arg(parser, name: str, default=False):
     group = parser.add_mutually_exclusive_group(required=False)
@@ -306,9 +291,12 @@ def main():
 
     #storage = DirectoryStorage(args.cache)
     storage = SQLiteStorage('commits.db')
-
+    fetcher = GithubAPI()
     for repo_slug in args.download or []:
-        download_commits(storage, repo_slug)
+        for commit in fetcher.commits(repo_slug):
+            if commit not in storage:
+                print(commit.sha)
+                storage.store(commit)
 
     if args.render:
         commits = storage.commits()
