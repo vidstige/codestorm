@@ -267,7 +267,8 @@ def codestorm(commits):
 def last_modified(commit) -> datetime:
     return datetime.strptime(
         commit.last_modified,
-        '%a, %d %b %Y %H:%M:%S %Z')
+        #'%a, %d %b %Y %H:%M:%S %Z')
+        '%Y-%m-%d %H:%M:%S')
 
 
 
