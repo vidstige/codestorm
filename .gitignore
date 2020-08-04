@@ -4,3 +4,4 @@ __pycache__/
 output.raw
 commit-cache/
 commits.db
+.repos/

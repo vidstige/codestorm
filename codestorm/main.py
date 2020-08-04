@@ -8,7 +8,7 @@ import sys
 import cairo
 import numpy as np
 
-from codestorm.fetch import GithubAPI
+from codestorm.fetch import GithubAPI, Cloning, Slug
 from codestorm.storage import DirectoryStorage, SQLiteStorage, Commit
 
 
@@ -291,9 +291,11 @@ def main():
 
     #storage = DirectoryStorage(args.cache)
     storage = SQLiteStorage('commits.db')
-    fetcher = GithubAPI()
+    #fetcher = GithubAPI()
+    fetcher = Cloning()
     for repo_slug in args.download or []:
-        for commit in fetcher.commits(repo_slug):
+        slug = Slug.from_string(repo_slug)
+        for commit in fetcher.commits(slug):
             if commit not in storage:
                 print(commit.sha)
                 storage.store(commit)

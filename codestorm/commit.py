@@ -12,6 +12,13 @@ class File:
         self.additions = additions
         self.changes = changes
         self.deletions = deletions
+
+    def __repr__(self) -> str:
+        return 'File({filename}, {additions}, {changes}, {deletions})'.format(
+            filename=self.filename,
+            additions=self.additions,
+            changes=self.changes,
+            deletions=self.deletions)
         
 
 class Commit:
