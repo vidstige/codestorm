@@ -87,11 +87,14 @@ class Cloning(Fetcher):
 
             # TODO: git prints these in local timestamp
             timestamp = datetime.fromtimestamp(int(timestamp_raw))
-            next(lines)  # skip empty
 
             files = []
             for line in lines:
                 line = line.decode().strip()
+                if not line:
+                    # skip empty line
+                    continue
+
                 parts = line.split('\t')
                 if len(parts) == 3:
                     added, removed, filename = parts
