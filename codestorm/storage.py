@@ -19,7 +19,7 @@ def serialize_files(files):
 
 
 def deserialize_file(raw):
-    return File(*raw.split(':'))
+    return File(*raw.rsplit(':', 3))
 
 
 def deserialize_files(raw):
