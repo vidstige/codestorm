@@ -15,13 +15,18 @@ from codestorm.storage import DirectoryStorage, SQLiteStorage, Commit
 TAU = 2 * np.pi
 
 
+def constant(stiffness, age):
+    return stiffness
+
+
 class Simulation:
-    def __init__(self):
+    def __init__(self, stiffness=constant):
         self.t = 0
         self.positions = np.empty((0, 2))
         self.identifiers = []
         self.masses = np.empty((0, 1))
         self.springs = {}
+        self.stiffness = stiffness
 
     def set_time(self, t):
         self.t = t
@@ -53,7 +58,7 @@ class Simulation:
         """Adds a spring"""
         i = self.index_of(a)
         j = self.index_of(b)
-        self.springs[identifier] = (i, j, length, stiffness)
+        self.springs[identifier] = (i, j, length, stiffness, self.t)
 
     def remove_spring(self, identifier):
         del self.springs[identifier]
@@ -67,7 +72,7 @@ class Simulation:
         jj = [spring[1] for spring in self.springs.values()]
         ll = [spring[2] for spring in self.springs.values()]
         ss = [spring[3] for spring in self.springs.values()]
-        mass = 1
+        tt = [spring[4] for spring in self.springs.values()]
     
         # compute deltas
         di = positions[jj] - positions[ii]
@@ -76,10 +81,12 @@ class Simulation:
         # compute lengths
         norms = np.linalg.norm(di, axis=-1)
 
-        # compute force magnitudes
-        forces = (norms - ll) * np.array(ss)
+        # compute spring force magnitudes
+        age = self.t - np.array(tt)
+        forces = (norms - ll) * self.stiffness(np.array(ss), age)
 
         # compute accelerations and accumulate
+        mass = 1
         v[ii] += (di / norms[:, None]) * forces[:, None] / mass
         v[jj] += (dj / norms[:, None]) * forces[:, None] / mass
         return v
