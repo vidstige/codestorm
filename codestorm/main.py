@@ -4,6 +4,7 @@ import itertools
 import os
 from pathlib import Path
 import sys
+from typing import Iterable
 
 import cairo
 import numpy as np
@@ -111,9 +112,13 @@ class Simulation:
             return False
 
 class TickSimulation(Simulation):
-    def __init__(self, tick_length: timedelta):
+    def __init__(self, tick_length: timedelta, stiffness):
         self.tick_length = tick_length
-        super().__init__()
+        self.stiffness_function = stiffness
+        super().__init__(stiffness=self._stiffness)
+    
+    def _stiffness(self, stiffness, age):
+        return self.stiffness_function(stiffness, age * self.tick_length.total_seconds())
 
     def set_time(self, time: datetime):
         super().set_time(time.timestamp() / self.tick_length.total_seconds())
@@ -191,7 +196,7 @@ def lazy_merge(a, b):
             bb = next(bi)
 
 
-def steady(start, timestep):
+def steady(start: datetime, timestep: timedelta) -> Iterable[datetime]:
     """Returns infinite iterator with evenly spaced timestamps"""
     t = start
     while True:
@@ -201,7 +206,14 @@ def steady(start, timestep):
 import os
 
 def codestorm(commits):
-    simulation = TickSimulation(timedelta(days=1))
+    def stiffness(stiffness, age):
+        # the duration a force is active
+        duration = timedelta(days=30)
+        # normalized time (0..1)
+        nt = np.clip(age / duration.total_seconds(), 0, 1)
+        return stiffness * ((np.cos(np.pi * nt) + 1) / 2)
+
+    simulation = TickSimulation(timedelta(days=1), stiffness=stiffness)
 
     renderer = Renderer(
         sys.stdout.buffer,
@@ -212,7 +224,6 @@ def codestorm(commits):
     # maps identifiers to timestamps
     files = {}
     authors = {}
-    springs = {}
 
     # render properties
     author_properties = RenderProperties(color=(1, 0, 0), radius=4)
