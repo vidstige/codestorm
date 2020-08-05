@@ -63,6 +63,12 @@ class Simulation:
 
     def remove_spring(self, identifier):
         del self.springs[identifier]
+    
+    def iter_springs(self):
+        """Iterate all spring ids and age"""
+        t = self.t
+        for spring_id, spring in self.springs.items():
+            yield spring_id, t - spring[4]
 
     def velocities(self, positions, t: float):
         # compute spring forces
@@ -119,6 +125,10 @@ class TickSimulation(Simulation):
     
     def _stiffness(self, stiffness, age):
         return self.stiffness_function(stiffness, age * self.tick_length.total_seconds())
+
+    def iter_springs(self):
+        for spring_id, age in super().iter_springs():
+            yield spring_id, age * self.tick_length
 
     def set_time(self, time: datetime):
         super().set_time(time.timestamp() / self.tick_length.total_seconds())
@@ -206,11 +216,12 @@ def steady(start: datetime, timestep: timedelta) -> Iterable[datetime]:
 import os
 
 def codestorm(commits):
+    # the duration a force is active
+    spring_duration = timedelta(days=30)
+
     def stiffness(stiffness, age):
-        # the duration a force is active
-        duration = timedelta(days=30)
         # normalized time (0..1)
-        nt = np.clip(age / duration.total_seconds(), 0, 1)
+        nt = np.clip(age / spring_duration.total_seconds(), 0, 1)
         return stiffness * ((np.cos(np.pi * nt) + 1) / 2)
 
     simulation = TickSimulation(timedelta(days=1), stiffness=stiffness)
@@ -277,7 +288,12 @@ def codestorm(commits):
                         sid, author, filename, 0.2, 0.05)
         
             # add spring forces or update timestamps
-            # prune old spring forces
+            
+            # remove old spring forces
+            to_remove = [spring_id for spring_id, age in simulation.iter_springs() if age > spring_duration]
+            for spring_id in to_remove:
+                simulation.remove_spring(spring_id)
+
             # prune old files
             # prune old authors
 
@@ -287,7 +303,6 @@ def last_modified(commit) -> datetime:
         commit.last_modified,
         #'%a, %d %b %Y %H:%M:%S %Z')
         '%Y-%m-%d %H:%M:%S')
-
 
 
 def add_bool_arg(parser, name: str, default=False):
