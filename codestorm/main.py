@@ -20,6 +20,15 @@ def constant(stiffness, age):
     return stiffness
 
 
+def replace_index(spring, a, b):
+    i, j, length, stiffness, timestamp = spring
+    if i == a:
+        i = b
+    if j == a:
+        j = b
+    return i, j, length, stiffness, timestamp
+
+
 class Simulation:
     def __init__(self, stiffness=constant):
         self.t = 0
@@ -46,14 +55,20 @@ class Simulation:
         i = self.index_of(identity)
         # 1. assert no springs are in use
         assert not any(i == spring[0] or i == spring[1] for spring in self.springs.values())
-        # 2. swap last and i
+
+        # 2. Update all springs refering the last element to now refer i instead
+        last = len(self.identifiers) - 1
+        self.springs = {sid: replace_index(spring, last, i) for sid, spring in self.springs.items()}
+
+        # 3. swap last and i
         self.identifiers[i], self.identifiers[-1] = self.identifiers[-1], self.identifiers[i]
         self.positions[i], self.positions[-1] = self.positions[-1], self.positions[i]
         self.masses[i], self.masses[-1] = self.masses[-1], self.masses[i]
-        # 3. remove last element
+
+        # 4. remove last element
         del self.identifiers[-1]
-        del self.positions[-1]
-        del self.masses[-1]
+        self.positions = self.positions[:-1]
+        self.masses = self.masses[:-1]
 
     def add_spring(self, identifier, a, b, length, stiffness=1) -> None:
         """Adds a spring"""
@@ -217,7 +232,9 @@ import os
 
 def codestorm(commits):
     # the duration a force is active
-    spring_duration = timedelta(days=30)
+    spring_duration = timedelta(days=7)
+    file_duration = timedelta(days=14)
+    author_duration = timedelta(days=14)
 
     def stiffness(stiffness, age):
         # normalized time (0..1)
@@ -279,7 +296,7 @@ def codestorm(commits):
                 if filename not in simulation:
                     simulation.add_body(np.random.rand(1, 2) - 0.5, filename)
                     renderer.properties[filename] = file_properties
-                    files[filename] = simulation.get_time()
+                files[filename] = simulation.get_time()
 
                 # spring id
                 sid = '{author}-{filename}'.format(author=author, filename=filename)
@@ -291,8 +308,16 @@ def codestorm(commits):
             for spring_id in to_remove:
                 simulation.remove_spring(spring_id)
 
-            # prune old files
-            # prune old authors
+            t = simulation.get_time()
+            to_remove = [f for f, timestamp in files.items() if t - timestamp > file_duration]
+            for f in to_remove:
+                simulation.remove_body(f)
+                del files[f]
+
+            to_remove = [author for author, timestamp in authors.items() if t - timestamp > author_duration]
+            for f in to_remove:
+                simulation.remove_body(f)
+                del authors[f]
 
 
 def last_modified(commit) -> datetime:
