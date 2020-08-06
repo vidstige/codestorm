@@ -184,14 +184,15 @@ class Renderer:
         surface = self.surface
         
         ctx = cairo.Context(surface)
-        #w, h = surface.get_width(), surface.get_height()
+        w, h = surface.get_width(), surface.get_height()
 
         clear(surface, color=self.bg)
         
+        mx, my = w // 2, h // 2
         for identifier, (x, y) in zip(self.simulation.identifiers, self.simulation.positions):
             properties = self.properties.get(identifier, self.default_properties)
             ctx.set_source_rgb(*properties.color)
-            ctx.arc(160 + x * 160, 100 + y * 100, properties.radius, 0, TAU)
+            ctx.arc(mx + x * mx, my + y * my, properties.radius, 0, TAU)
             ctx.fill()
         
         # overlay
@@ -232,9 +233,9 @@ import os
 
 def codestorm(commits):
     # the duration a force is active
-    spring_duration = timedelta(days=7)
-    file_duration = timedelta(days=14)
-    author_duration = timedelta(days=14)
+    spring_duration = timedelta(weeks=12)
+    file_duration = timedelta(weeks=25)
+    author_duration = timedelta(weeks=25)
 
     def stiffness(stiffness, age):
         # normalized time (0..1)
@@ -246,7 +247,7 @@ def codestorm(commits):
     renderer = Renderer(
         sys.stdout.buffer,
         simulation,
-        (320, 200),
+        (640, 480),
         bg=(1, 1, 1))
     
     # maps identifiers to timestamps
