@@ -283,11 +283,8 @@ def codestorm(commits):
 
                 # spring id
                 sid = '{author}-{filename}'.format(author=author, filename=filename)
-                if sid not in simulation.springs:
-                    simulation.add_spring(
-                        sid, author, filename, 0.2, 0.05)
-        
-            # add spring forces or update timestamps
+                # add spring forces or update timestamps
+                simulation.add_spring(sid, author, filename, 0.2, 0.05)
             
             # remove old spring forces
             to_remove = [spring_id for spring_id, age in simulation.iter_springs() if age > spring_duration]
