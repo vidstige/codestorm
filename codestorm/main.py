@@ -247,13 +247,20 @@ def size(commit: Commit) -> float:
     return sum(f.additions + f.changes + f.deletions for f in commit.files)
 
 
+def from_intensity(original: RenderProperties, intensity: Intensity) -> RenderProperties:
+    """Compute render properties from original + intensity"""
+    return RenderProperties(
+        color=original.color,
+        radius=np.clip(np.log(intensity), 1, 128))
+
+
 import os
 
 def codestorm(commits):
     # the duration a force is active
-    spring_duration = timedelta(weeks=12)
-    file_duration = timedelta(weeks=25)
-    author_duration = timedelta(weeks=25)
+    spring_duration = timedelta(weeks=11)
+    file_duration = timedelta(weeks=12)
+    author_duration = timedelta(weeks=12)
 
     def stiffness(stiffness, age):
         # normalized time (0..1)
@@ -300,36 +307,47 @@ def codestorm(commits):
 
         if commit == render_instruction:
             # this is a frame, just render it
+            
+            # update render properties
+            t = simulation.get_time()
+            for author, (timestamp, intensity) in authors.items():
+                i = intensity_at(t - timestamp, intensity, author_duration)
+                renderer.properties[author] = from_intensity(author_properties, i)
+
+            for filename, (timestamp, intensity) in files.items():
+                i = intensity_at(t - timestamp, intensity, file_duration)
+                renderer.properties[filename] = from_intensity(file_properties, i)
+            
             renderer.render()
         else:
             # Add body for author (if needed) and update timestamp
             author = commit.committer.login
             if author not in simulation:
                 simulation.add_body(np.random.rand(1, 2) - 0.5, author)
-                renderer.properties[author] = author_properties
 
             # update timestamp and intensity
             pt, pi = authors.get(author, (simulation.get_time(), 0))
             spillover = intensity_at(age=simulation.get_time() - pt, intensity=pi, duration=author_duration)
-            authors[author] = simulation.get_time(), spillover + size(commit)
+            intensity = spillover + size(commit)
+            authors[author] = simulation.get_time(), intensity
 
             # Add body for file (if needed) and update timestamp
             for phile in commit.files or tuple():
                 filename = os.path.basename(phile.filename)
                 if filename not in simulation:
                     simulation.add_body(np.random.rand(1, 2) - 0.5, filename)
-                    renderer.properties[filename] = file_properties
 
-                pt, pi = authors.get(author, (simulation.get_time(), 0))
+                pt, pi = files.get(filename, (simulation.get_time(), 0))
                 spillover = intensity_at(age=simulation.get_time() - pt, intensity=pi, duration=author_duration)
-                authors[author] = simulation.get_time(), spillover + size(commit)
+                intensity = spillover + phile.additions + phile.changes + phile.deletions
+                files[filename] = simulation.get_time(), intensity
 
                 # add spring force
                 # spring id
                 sid = '{author}-{filename}'.format(author=author, filename=filename)
                 # add spring forces or update timestamps
                 simulation.add_spring(sid, author, filename, 0.2, 0.05)
-            
+                      
             # remove old spring forces
             to_remove = [spring_id for spring_id, age in simulation.iter_springs() if age > spring_duration]
             for spring_id in to_remove:
