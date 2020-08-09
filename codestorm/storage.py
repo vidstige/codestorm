@@ -18,8 +18,15 @@ def serialize_files(files):
     return '|'.join('{}:{}:{}:{}'.format(f.filename, f.additions, f.changes, f.deletions) for f in files)
 
 
+def parse_size(size: str) -> int:
+    if size == 'None':
+        return 0
+    return int(size)
+
+
 def deserialize_file(raw):
-    return File(*raw.rsplit(':', 3))
+    filename, additions, changes, deletions = raw.rsplit(':', 3)
+    return File(filename, parse_size(additions), parse_size(changes), parse_size(deletions))
 
 
 def deserialize_files(raw):

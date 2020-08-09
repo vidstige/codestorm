@@ -244,7 +244,7 @@ def intensity_at(age: timedelta, intensity: Intensity, duration: timedelta):
 
 
 def size(commit: Commit) -> float:
-    return 1
+    return sum(f.additions + f.changes + f.deletions for f in commit.files)
 
 
 import os
