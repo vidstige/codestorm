@@ -189,10 +189,11 @@ class Renderer:
         clear(surface, color=self.bg)
         
         mx, my = w // 2, h // 2
+        scale = min(w, h)
         for identifier, (x, y) in zip(self.simulation.identifiers, self.simulation.positions):
             properties = self.properties.get(identifier, self.default_properties)
             ctx.set_source_rgb(*properties.color)
-            ctx.arc(mx + x * mx, my + y * my, properties.radius, 0, TAU)
+            ctx.arc(mx + x * scale, my + y * scale, properties.radius, 0, TAU)
             ctx.fill()
         
         # overlay
