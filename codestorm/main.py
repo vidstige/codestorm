@@ -229,6 +229,24 @@ def steady(start: datetime, timestep: timedelta) -> Iterable[datetime]:
         yield t
         t += timestep
 
+
+
+# tween
+def sin_inout(nt):
+    return (np.cos(np.pi * nt) + 1) / 2
+
+
+Intensity = float
+
+def intensity_at(age: timedelta, intensity: Intensity, duration: timedelta):
+    nt = np.clip(age.total_seconds() / duration.total_seconds(), 0, 1)
+    return intensity * sin_inout(nt)
+
+
+def size(commit: Commit) -> float:
+    return 1
+
+
 import os
 
 def codestorm(commits):
@@ -240,7 +258,7 @@ def codestorm(commits):
     def stiffness(stiffness, age):
         # normalized time (0..1)
         nt = np.clip(age / spring_duration.total_seconds(), 0, 1)
-        return stiffness * ((np.cos(np.pi * nt) + 1) / 2)
+        return stiffness * sin_inout(nt)
 
     simulation = TickSimulation(timedelta(days=1), stiffness=stiffness)
 
@@ -289,16 +307,24 @@ def codestorm(commits):
             if author not in simulation:
                 simulation.add_body(np.random.rand(1, 2) - 0.5, author)
                 renderer.properties[author] = author_properties
-            authors[author] = simulation.get_time(), 0
-            
+
+            # update timestamp and intensity
+            pt, pi = authors.get(author, (simulation.get_time(), 0))
+            spillover = intensity_at(age=simulation.get_time() - pt, intensity=pi, duration=author_duration)
+            authors[author] = simulation.get_time(), spillover + size(commit)
+
             # Add body for file (if needed) and update timestamp
             for phile in commit.files or tuple():
                 filename = os.path.basename(phile.filename)
                 if filename not in simulation:
                     simulation.add_body(np.random.rand(1, 2) - 0.5, filename)
                     renderer.properties[filename] = file_properties
-                files[filename] = simulation.get_time(), 0
 
+                pt, pi = authors.get(author, (simulation.get_time(), 0))
+                spillover = intensity_at(age=simulation.get_time() - pt, intensity=pi, duration=author_duration)
+                authors[author] = simulation.get_time(), spillover + size(commit)
+
+                # add spring force
                 # spring id
                 sid = '{author}-{filename}'.format(author=author, filename=filename)
                 # add spring forces or update timestamps
