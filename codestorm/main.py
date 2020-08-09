@@ -199,7 +199,7 @@ class Renderer:
         ctx.set_source_rgb(0, 0, 0)
         ctx.move_to(8, 24)
         ctx.set_font_size(16)
-        ctx.show_text(self.simulation.get_time().isoformat(' ', timespec='seconds'))
+        ctx.show_text(self.simulation.get_time().date().isoformat())
 
         self.output.write(surface.get_data())
 
