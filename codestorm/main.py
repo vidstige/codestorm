@@ -250,7 +250,7 @@ def codestorm(commits):
         (640, 480),
         bg=(1, 1, 1))
     
-    # maps identifiers to timestamps
+    # maps identifiers to timestamps, intensity tuples
     files = {}
     authors = {}
 
@@ -289,7 +289,7 @@ def codestorm(commits):
             if author not in simulation:
                 simulation.add_body(np.random.rand(1, 2) - 0.5, author)
                 renderer.properties[author] = author_properties
-            authors[author] = simulation.get_time()
+            authors[author] = simulation.get_time(), 0
             
             # Add body for file (if needed) and update timestamp
             for phile in commit.files or tuple():
@@ -297,7 +297,7 @@ def codestorm(commits):
                 if filename not in simulation:
                     simulation.add_body(np.random.rand(1, 2) - 0.5, filename)
                     renderer.properties[filename] = file_properties
-                files[filename] = simulation.get_time()
+                files[filename] = simulation.get_time(), 0
 
                 # spring id
                 sid = '{author}-{filename}'.format(author=author, filename=filename)
@@ -310,12 +310,12 @@ def codestorm(commits):
                 simulation.remove_spring(spring_id)
 
             t = simulation.get_time()
-            to_remove = [f for f, timestamp in files.items() if t - timestamp > file_duration]
+            to_remove = [f for f, (timestamp, _) in files.items() if t - timestamp > file_duration]
             for f in to_remove:
                 simulation.remove_body(f)
                 del files[f]
 
-            to_remove = [author for author, timestamp in authors.items() if t - timestamp > author_duration]
+            to_remove = [author for author, (timestamp, _) in authors.items() if t - timestamp > author_duration]
             for f in to_remove:
                 simulation.remove_body(f)
                 del authors[f]
