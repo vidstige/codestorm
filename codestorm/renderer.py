@@ -15,14 +15,17 @@ def clear(target: cairo.ImageSurface, color=(1, 1, 1)) -> None:
 
 
 class RenderProperties:
-    def __init__(self, color, radius):
+    def __init__(self, color, radius, z=0, label=None):
         self.color = color
         self.radius = radius
+        self.z = z
+        self.label = label
 
 
 class Renderer:
     default_properties = RenderProperties((0.42, 0.22, 1), 3)
-
+    text_color = (0, 0, 0)
+    
     def __init__(self, output, simulation, resolution, bg=(0, 0, 0)):
         self.output = output
         self.simulation = simulation
@@ -41,14 +44,21 @@ class Renderer:
         
         mx, my = w // 2, h // 2
         scale = min(w, h)
-        for identifier, (x, y) in zip(self.simulation.identifiers, self.simulation.positions):
-            properties = self.properties.get(identifier, self.default_properties)
+        items = [(self.properties.get(identifier, self.default_properties), position) for identifier, position in zip(self.simulation.identifiers, self.simulation.positions)]
+        for properties, (x, y) in sorted(items, key=lambda item: item[0].z, reverse=True):
             ctx.set_source_rgb(*properties.color)
             ctx.arc(mx + x * scale, my + y * scale, properties.radius, 0, TAU)
             ctx.fill()
+
+            if properties.label:
+                extents = ctx.text_extents(properties.label)
+                ctx.move_to(mx + x * scale - (extents.width / 2), my + y * scale + extents.height + properties.radius)
+                ctx.set_source_rgb(*self.text_color)
+                ctx.show_text(properties.label)
+                
         
         # overlay
-        ctx.set_source_rgb(0, 0, 0)
+        ctx.set_source_rgb(*self.text_color)
         ctx.move_to(8, 24)
         ctx.set_font_size(16)
         ctx.show_text(self.simulation.get_time().date().isoformat())

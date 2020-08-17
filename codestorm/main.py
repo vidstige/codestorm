@@ -195,11 +195,13 @@ def size(commit: Commit) -> float:
     return sum(f.additions + f.changes + f.deletions for f in commit.files)
 
 
-def from_intensity(original: RenderProperties, intensity: Intensity) -> RenderProperties:
+def from_intensity(original: RenderProperties, intensity: Intensity, label: str=None) -> RenderProperties:
     """Compute render properties from original + intensity"""
     return RenderProperties(
         color=original.color,
-        radius=np.clip(np.log(intensity), 1, 128))
+        radius=np.clip(np.log(intensity), 1, 128),
+        z=original.z,
+        label=label)
 
 
 import os
@@ -228,7 +230,7 @@ def codestorm(commits):
     authors = {}
 
     # render properties
-    author_properties = RenderProperties(color=(1, 0, 0), radius=4)
+    author_properties = RenderProperties(color=(1, 0, 0), radius=4, z=-1)
     file_properties = RenderProperties(color=(0, 0.7, 0.6), radius=3)
 
     # find start time
@@ -260,7 +262,7 @@ def codestorm(commits):
             t = simulation.get_time()
             for author, (timestamp, intensity) in authors.items():
                 i = intensity_at(t - timestamp, intensity, author_duration)
-                renderer.properties[author] = from_intensity(author_properties, i)
+                renderer.properties[author] = from_intensity(author_properties, i, label=author)
 
             for filename, (timestamp, intensity) in files.items():
                 i = intensity_at(t - timestamp, intensity, file_duration)
