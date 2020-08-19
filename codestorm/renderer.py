@@ -37,6 +37,12 @@ class Renderer:
     def render(self):
         surface = self.surface
         
+        pattern = cairo.RadialGradient(
+            0.5, 0.5, 0,
+            0.5, 0.5, 0.25)
+        pattern.add_color_stop_rgba(0, 0, 0, 0, 1)
+        pattern.add_color_stop_rgba(1, 0, 0, 0, 0)
+
         ctx = cairo.Context(surface)
         w, h = surface.get_width(), surface.get_height()
 
@@ -46,9 +52,14 @@ class Renderer:
         scale = min(w, h)
         items = [(self.properties.get(identifier, self.default_properties), position) for identifier, position in zip(self.simulation.identifiers, self.simulation.positions)]
         for properties, (x, y) in sorted(items, key=lambda item: item[0].z, reverse=True):
-            ctx.set_source_rgb(*properties.color)
-            ctx.arc(mx + x * scale, my + y * scale, properties.radius, 0, TAU)
-            ctx.fill()
+            ctx.save()
+            ctx.translate(mx + x * scale, my + y * scale)
+            ctx.scale(2*properties.radius, 2*properties.radius)
+            ctx.rectangle(0, 0, 1, 1)
+            ctx.clip()
+            ctx.set_source(pattern)
+            ctx.mask(pattern)
+            ctx.restore()
 
             if properties.label:
                 extents = ctx.text_extents(properties.label)

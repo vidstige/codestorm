@@ -199,7 +199,7 @@ def from_intensity(original: RenderProperties, intensity: Intensity, label: str=
     """Compute render properties from original + intensity"""
     return RenderProperties(
         color=original.color,
-        radius=np.clip(np.log(intensity), 1, 128),
+        radius=np.clip(original.radius * np.log(intensity), 1, 128),
         z=original.z,
         label=label)
 
@@ -208,9 +208,9 @@ import os
 
 def codestorm(commits):
     # the duration a force is active
-    spring_duration = timedelta(weeks=11)
-    file_duration = timedelta(weeks=12)
-    author_duration = timedelta(weeks=12)
+    spring_duration = timedelta(weeks=27)
+    file_duration = timedelta(weeks=28)
+    author_duration = timedelta(weeks=28)
 
     def stiffness(stiffness, age):
         # normalized time (0..1)
@@ -230,8 +230,8 @@ def codestorm(commits):
     authors = {}
 
     # render properties
-    author_properties = RenderProperties(color=(1, 0, 0), radius=4, z=-1)
-    file_properties = RenderProperties(color=(0, 0.7, 0.6), radius=3)
+    author_properties = RenderProperties(color=(1, 0, 0), radius=6, z=-1)
+    file_properties = RenderProperties(color=(0, 0.7, 0.6), radius=4)
 
     # find start time
     commit_iterator = iter(commits)
