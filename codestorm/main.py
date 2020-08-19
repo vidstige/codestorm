@@ -338,6 +338,7 @@ def main():
     parser.add_argument(
         '--download', metavar='repos', type=str, nargs='*',
         help='downloads')
+
     add_bool_arg(parser, 'render', True)
 
     args = parser.parse_args()
@@ -352,6 +353,15 @@ def main():
             if commit not in storage:
                 print(commit.sha)
                 storage.store(commit)
+    
+    #commits = storage.commits()
+    #everything = set()
+    #set().union()
+    #for commit in commits:
+    #    for f in commit.files:
+    #        suffix = Path(f.filename).suffix
+    #        everything.add(suffix)
+    #print(everything)
 
     if args.render:
         commits = storage.commits()
