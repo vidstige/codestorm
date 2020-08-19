@@ -40,7 +40,7 @@ class Renderer:
         pattern = cairo.RadialGradient(
             0.5, 0.5, 0,
             0.5, 0.5, 0.25)
-        pattern.add_color_stop_rgba(0, 0, 0, 0, 1)
+        pattern.add_color_stop_rgba(0, 0, 0, 0, 0.75)
         pattern.add_color_stop_rgba(1, 0, 0, 0, 0)
 
         ctx = cairo.Context(surface)
