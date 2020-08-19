@@ -206,9 +206,25 @@ def from_intensity(original: RenderProperties, intensity: Intensity, label: str=
     return properties
 
 
+class Config:
+    def __init__(self, seed=None, file_types={}):
+        self.seed = seed
+        self.file_types = file_types
+        self.default_file_render_properties = (0, 0.7, 0.6)
+        self._properties_cache = {}
+
+    def render_properties_for(self, filename: str):
+        color = self.file_types.get(Path(filename).suffix, self.default_file_render_properties)
+        properties = self._properties_cache.get(color)
+        if not properties:
+            properties = RenderProperties(color, radius=4)
+            self._properties_cache[color] = properties
+        return properties
+
+
 import os
 
-def codestorm(commits):
+def codestorm(commits: Iterable[Commit], config: Config):
     # the duration a force is active
     spring_duration = timedelta(weeks=27)
     file_duration = timedelta(weeks=28)
@@ -218,6 +234,8 @@ def codestorm(commits):
         # normalized time (0..1)
         nt = np.clip(age / spring_duration.total_seconds(), 0, 1)
         return stiffness * sin_inout(nt)
+
+    np.random.seed(config.seed)
 
     simulation = TickSimulation(timedelta(days=1), stiffness=stiffness)
 
@@ -233,7 +251,6 @@ def codestorm(commits):
 
     # render properties
     author_properties = RenderProperties(color=(1, 0, 0), radius=2, z=-1)
-    file_properties = RenderProperties(color=(0, 0.7, 0.6), radius=4)
 
     # find start time
     commit_iterator = iter(commits)
@@ -268,7 +285,8 @@ def codestorm(commits):
 
             for filename, (timestamp, intensity) in files.items():
                 i = intensity_at(t - timestamp, intensity, file_duration)
-                renderer.properties[filename] = from_intensity(file_properties, i)
+                render_properties = config.render_properties_for(filename)
+                renderer.properties[filename] = from_intensity(render_properties, i)
             
             renderer.render()
         else:
@@ -355,17 +373,61 @@ def main():
                 storage.store(commit)
     
     #commits = storage.commits()
-    #everything = set()
-    #set().union()
+    #everything = []
     #for commit in commits:
     #    for f in commit.files:
     #        suffix = Path(f.filename).suffix
-    #        everything.add(suffix)
-    #print(everything)
+    #        everything.append(suffix)
+    #from collections import Counter
+    #print(Counter(everything))
 
     if args.render:
+        cpp = (1, 0, 0)
+        frontend = (0, 1, 0)
+        python = (0.5, 0.5, 0.5)
+        data = (1, 0, 1)
+        bash = (0,0,0)
+        config = Config(
+            seed=1337,
+            file_types={
+                '.py': python,
+
+                '.h': cpp,
+                '.hh': cpp,
+                '.c': cpp,
+                '.cc': cpp,
+                '.hpp': cpp,
+                '.cpp': cpp,
+                '.hxx': cpp,
+                '.cxx': cpp,
+
+                '.html': frontend,
+                '.sass': frontend,
+                '.css': frontend,
+                '.ts': frontend,
+                '.js': frontend,
+                '.tsx': frontend,
+                '.jsx': frontend,
+
+                '.sh': bash,
+
+                '.jpeg': data,
+                '.jpg': data,
+                '.gif': data,
+                '.png': data,
+                '.bmp': data,
+                '.svg': data,
+
+                '.ply': data,
+                '.obj': data,
+
+                '.txt': data,
+                '.csv': data,
+                '.json': data
+            }
+        )
         commits = storage.commits()
-        codestorm(commits)
+        codestorm(commits, config)
         #for commit in commits:
         #    print(commit.sha)
 
