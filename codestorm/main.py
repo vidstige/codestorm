@@ -1,4 +1,5 @@
 import argparse
+from copy import copy
 from datetime import datetime, timedelta
 import itertools
 import os
@@ -197,11 +198,10 @@ def size(commit: Commit) -> float:
 
 def from_intensity(original: RenderProperties, intensity: Intensity, label: str=None) -> RenderProperties:
     """Compute render properties from original + intensity"""
-    return RenderProperties(
-        color=original.color,
-        radius=np.clip(original.radius * np.log(intensity), 1, 128),
-        z=original.z,
-        label=label)
+    properties = copy(original)
+    properties.radius = np.clip(original.radius * np.log(intensity), 1, 128)
+    properties.label = label
+    return properties
 
 
 import os
