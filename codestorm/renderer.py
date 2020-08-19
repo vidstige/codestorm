@@ -67,7 +67,7 @@ class Renderer:
 
             if properties.label:
                 extents = ctx.text_extents(properties.label)
-                ctx.move_to(mx + x * scale - extents.x_bearing - (extents.width / 2), my + y * scale + extents.height + properties.radius)
+                ctx.move_to(mx + x * scale - extents.x_bearing - (extents.width / 2) + properties.radius, my + y * scale + extents.height + properties.radius)
                 ctx.set_source_rgb(*self.text_color)
                 ctx.show_text(properties.label)
                 

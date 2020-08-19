@@ -51,8 +51,10 @@ class Simulation:
 
     def remove_body(self, identity) -> None:
         i = self.index_of(identity)
-        # 1. assert no springs are in use
-        assert not any(i == spring[0] or i == spring[1] for spring in self.springs.values())
+        # 1. remove springs attached to body
+        to_remove = [sid for sid, spring in self.springs.items() if i == spring[0] or i == spring[1]]
+        for sid in to_remove:
+            self.remove_spring(sid)
 
         # 2. Update all springs refering the last element to now refer i instead
         last = len(self.identifiers) - 1
@@ -210,7 +212,7 @@ def codestorm(commits):
     # the duration a force is active
     spring_duration = timedelta(weeks=27)
     file_duration = timedelta(weeks=28)
-    author_duration = timedelta(weeks=28)
+    author_duration = timedelta(weeks=11)
 
     def stiffness(stiffness, age):
         # normalized time (0..1)
@@ -230,7 +232,7 @@ def codestorm(commits):
     authors = {}
 
     # render properties
-    author_properties = RenderProperties(color=(1, 0, 0), radius=6, z=-1)
+    author_properties = RenderProperties(color=(1, 0, 0), radius=2, z=-1)
     file_properties = RenderProperties(color=(0, 0.7, 0.6), radius=4)
 
     # find start time
@@ -296,7 +298,7 @@ def codestorm(commits):
                 # spring id
                 sid = '{author}-{filename}'.format(author=author, filename=filename)
                 # add spring forces or update timestamps
-                simulation.add_spring(sid, author, filename, 0.2, 0.05)
+                simulation.add_spring(sid, author, filename, 0.2, 0.02)
                       
             # remove old spring forces
             to_remove = [spring_id for spring_id, age in simulation.iter_springs() if age > spring_duration]
