@@ -210,7 +210,10 @@ def from_intensity(original: RenderProperties, intensity: Intensity, label: str=
 class Config:
     def __init__(self, seed=None, file_types={}):
         self.seed = seed
+        self.foreground = None
+        self.background = None
         self.file_types = file_types
+        self.author_properties = None
         self._properties_cache = {}
 
     def render_properties_for(self, filename: str):
@@ -220,6 +223,44 @@ class Config:
             properties = RenderProperties(color, radius=4)
             self._properties_cache[color] = properties
         return properties
+
+
+def remove_prefix(text: str, prefixes: Iterable[str]) -> str:
+    for prefix in prefixes:
+        if text.startswith(prefix):
+            return text[len(prefix):]
+    return text
+
+
+class Color:
+    BLACK = (0, 0, 0)
+    WHITE = (1, 1, 1)
+    def __init__(self, raw: str):
+        r, g, b = bytes.fromhex(remove_prefix(raw, ['#', '0x']))
+        self.color = (r / 255, g / 255, b / 255)
+
+
+def parse_value(key, value):
+    if key == "color":
+        return Color(value).color
+    return value
+
+
+def parse(keys: Dict):
+    """Parses colors and more"""
+    return  {key: parse_value(key, value) for key, value in keys.items()}
+
+
+def update_from_json(config: Config, keys: Dict):
+    config.seed = keys.get('seed', config.seed)
+    config.author_properties = RenderProperties(**parse(keys.get('author')))
+    config.foreground = parse(keys.get('foreground')).get('color', Color.WHITE)
+    config.background = parse(keys.get('background')).get('color', Color.BLACK)
+
+    for filetype in keys.get('filetypes', []):
+        for extension in filetype['extensions']:
+            config.file_types[extension] = Color(filetype['color']).color
+        
 
 
 import os
@@ -243,14 +284,12 @@ def codestorm(commits: Iterable[Commit], config: Config):
         sys.stdout.buffer,
         simulation,
         (640, 480),
-        bg=(1, 1, 1))
-    
+        bg=config.background,
+        fg=config.foreground)
+
     # maps identifiers to timestamps, intensity tuples
     files = {}
     authors = {}
-
-    # render properties
-    author_properties = RenderProperties(color=(1, 0, 0), radius=2, z=-1)
 
     # find start time
     commit_iterator = iter(commits)
@@ -281,7 +320,7 @@ def codestorm(commits: Iterable[Commit], config: Config):
             t = simulation.get_time()
             for author, (timestamp, intensity) in authors.items():
                 i = intensity_at(t - timestamp, intensity, author_duration)
-                renderer.properties[author] = from_intensity(author_properties, i, label=author)
+                renderer.properties[author] = from_intensity(config.author_properties, i, label=author)
 
             for filename, (timestamp, intensity) in files.items():
                 i = intensity_at(t - timestamp, intensity, file_duration)
@@ -345,28 +384,6 @@ def last_modified(commit) -> datetime:
         commit.last_modified,
         #'%a, %d %b %Y %H:%M:%S %Z')
         '%Y-%m-%d %H:%M:%S')
-
-
-def remove_prefix(text: str, prefixes: Iterable[str]) -> str:
-    for prefix in prefixes:
-        if text.startswith(prefix):
-            return text[len(prefix):]
-    return text
-
-
-class Color:
-    def __init__(self, raw: str):
-        r, g, b = bytes.fromhex(remove_prefix(raw, ['#', '0x']))
-        self.color = (r / 256, g / 256, b / 256)
-
-
-def update_from_json(config: Config, keys: Dict):
-    config.seed = keys.get('seed', config.seed)
-
-    for filetype in keys.get('filetypes', []):
-        for extension in filetype['extensions']:
-            config.file_types[extension] = Color(filetype['color']).color
-        
 
 
 def add_bool_arg(parser, name: str, default=False):

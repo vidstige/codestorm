@@ -34,13 +34,13 @@ class RenderProperties:
 
 class Renderer:
     default_properties = RenderProperties((0.42, 0.22, 1), 3)
-    text_color = (0, 0, 0)
     
-    def __init__(self, output, simulation, resolution, bg=(0, 0, 0)):
+    def __init__(self, output, simulation, resolution, fg=(1, 1, 1), bg=(0, 0, 0)):
         self.output = output
         self.simulation = simulation
         width, height = resolution
         self.surface = cairo.ImageSurface(cairo.Format.RGB24, width, height)
+        self.fg = fg
         self.bg = bg
         self.properties = {}
     
@@ -68,12 +68,12 @@ class Renderer:
             if properties.label:
                 extents = ctx.text_extents(properties.label)
                 ctx.move_to(mx + x * scale - extents.x_bearing - (extents.width / 2) + properties.radius, my + y * scale + extents.height + properties.radius)
-                ctx.set_source_rgb(*self.text_color)
+                ctx.set_source_rgb(*self.fg)
                 ctx.show_text(properties.label)
                 
         
         # overlay
-        ctx.set_source_rgb(*self.text_color)
+        ctx.set_source_rgb(*self.fg)
         ctx.move_to(8, 24)
         ctx.set_font_size(16)
         ctx.show_text(self.simulation.get_time().date().isoformat())
