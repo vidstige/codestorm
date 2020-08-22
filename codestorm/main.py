@@ -226,7 +226,7 @@ import os
 
 def codestorm(commits: Iterable[Commit], config: Config):
     # the duration a force is active
-    spring_duration = timedelta(weeks=27)
+    spring_duration = timedelta(weeks=52)
     file_duration = timedelta(weeks=28)
     author_duration = timedelta(weeks=11)
 
@@ -294,6 +294,11 @@ def codestorm(commits: Iterable[Commit], config: Config):
             author = commit.committer.login
             if author not in simulation:
                 simulation.add_body(np.random.rand(1, 2) - 0.5, author)
+
+                # add springs between all other authors
+                for peer in authors:
+                    sid = '-'.join(sorted([peer, author]))
+                    simulation.add_spring(sid, peer, author, 0.3, 0.01)                
 
             # update timestamp and intensity
             pt, pi = authors.get(author, (simulation.get_time(), 0))
