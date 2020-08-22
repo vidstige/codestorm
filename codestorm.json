@@ -1,0 +1,14 @@
+{
+    "seed": 1337,
+    "filetypes": [
+        { "color": "#9c74c2", "extensions": [null]},
+        { "color": "#4f306d", "extensions": [".py"] },
+        { "color": "#5c377f", "extensions": [".h", ".hh", ".c", ".cc", ".hpp", "cpp", ".hxx", ".cxx"] },
+        { "color": "#693f90", "extensions": [".html", ".sass", ".css", ".ts", ".js", ".tsx", ".jsx"] },
+        { "color": "#7647a2", "extensions": [".sh"] },
+        { "color": "#8350b2", "extensions": [
+            ".jpeg", ".jpg", ".gif", ".png", ".bmp", ".svg",
+            ".ply", ".obj",
+            ".txt", ".csv", ".json"] }
+    ]
+}

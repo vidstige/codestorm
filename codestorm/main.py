@@ -2,10 +2,11 @@ import argparse
 from copy import copy
 from datetime import datetime, timedelta
 import itertools
+import json
 import os
 from pathlib import Path
 import sys
-from typing import Iterable
+from typing import Dict, Iterable
 
 import numpy as np
 
@@ -210,11 +211,10 @@ class Config:
     def __init__(self, seed=None, file_types={}):
         self.seed = seed
         self.file_types = file_types
-        self.default_file_render_properties = (0, 0.7, 0.6)
         self._properties_cache = {}
 
     def render_properties_for(self, filename: str):
-        color = self.file_types.get(Path(filename).suffix, self.default_file_render_properties)
+        color = self.file_types.get(Path(filename).suffix, self.file_types[None])
         properties = self._properties_cache.get(color)
         if not properties:
             properties = RenderProperties(color, radius=4)
@@ -347,6 +347,28 @@ def last_modified(commit) -> datetime:
         '%Y-%m-%d %H:%M:%S')
 
 
+def remove_prefix(text: str, prefixes: Iterable[str]) -> str:
+    for prefix in prefixes:
+        if text.startswith(prefix):
+            return text[len(prefix):]
+    return text
+
+
+class Color:
+    def __init__(self, raw: str):
+        r, g, b = bytes.fromhex(remove_prefix(raw, ['#', '0x']))
+        self.color = (r / 256, g / 256, b / 256)
+
+
+def update_from_json(config: Config, keys: Dict):
+    config.seed = keys.get('seed', config.seed)
+
+    for filetype in keys.get('filetypes', []):
+        for extension in filetype['extensions']:
+            config.file_types[extension] = Color(filetype['color']).color
+        
+
+
 def add_bool_arg(parser, name: str, default=False):
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument('--{}'.format(name), dest=name, action='store_true')
@@ -361,6 +383,7 @@ def main():
     parser.add_argument(
         '--download', metavar='repos', type=str, nargs='*',
         help='downloads')
+    parser.add_argument('--config', type=Path, default=Path('codestorm.json'))
 
     add_bool_arg(parser, 'render', True)
 
@@ -385,52 +408,12 @@ def main():
     #        everything.append(suffix)
     #from collections import Counter
     #print(Counter(everything))
+    config = Config()
+    config_file = args.config
+    with config_file.open() as f:
+        update_from_json(config, json.load(f))
 
     if args.render:
-        cpp = (1, 0, 0)
-        frontend = (0, 1, 0)
-        python = (0.5, 0.5, 0.5)
-        data = (1, 0, 1)
-        bash = (0,0,0)
-        config = Config(
-            seed=1337,
-            file_types={
-                '.py': python,
-
-                '.h': cpp,
-                '.hh': cpp,
-                '.c': cpp,
-                '.cc': cpp,
-                '.hpp': cpp,
-                '.cpp': cpp,
-                '.hxx': cpp,
-                '.cxx': cpp,
-
-                '.html': frontend,
-                '.sass': frontend,
-                '.css': frontend,
-                '.ts': frontend,
-                '.js': frontend,
-                '.tsx': frontend,
-                '.jsx': frontend,
-
-                '.sh': bash,
-
-                '.jpeg': data,
-                '.jpg': data,
-                '.gif': data,
-                '.png': data,
-                '.bmp': data,
-                '.svg': data,
-
-                '.ply': data,
-                '.obj': data,
-
-                '.txt': data,
-                '.csv': data,
-                '.json': data
-            }
-        )
         commits = storage.commits()
         codestorm(commits, config)
         #for commit in commits:
