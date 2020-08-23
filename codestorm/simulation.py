@@ -18,7 +18,7 @@ class Simulation:
     def __init__(self, stiffness=constant):
         self.t = 0
         self.positions = np.empty((0, 2))
-        self.identifiers = []
+        self.bodies = {}  # maps body identifer to index
         self.masses = np.empty((0, 1))
         self.springs = {}
         self.stiffness = stiffness
@@ -28,39 +28,38 @@ class Simulation:
 
     def add_body(self, position, identity, mass=1):
         assert position.shape[1] == self.positions.shape[1]
-        self.identifiers.append(identity)
+        self.bodies[identity] = len(self.positions)
         self.positions = np.vstack((self.positions, position))
         self.masses = np.vstack((self.masses, mass))
         return identity
-    
-    def index_of(self, identity) -> int:
-        return self.identifiers.index(identity)
 
     def remove_body(self, identity) -> None:
-        i = self.index_of(identity)
+        i = self.bodies[identity]
         # 1. remove springs attached to body
         to_remove = [sid for sid, spring in self.springs.items() if i == spring[0] or i == spring[1]]
         for sid in to_remove:
             self.remove_spring(sid)
 
         # 2. Update all springs refering the last element to now refer i instead
-        last = len(self.identifiers) - 1
+        last = len(self.positions) - 1
         self.springs = {sid: replace_index(spring, last, i) for sid, spring in self.springs.items()}
 
         # 3. swap last and i
-        self.identifiers[i], self.identifiers[-1] = self.identifiers[-1], self.identifiers[i]
+        for last_identity in (identity for identity, index in self.bodies.items() if index == last):
+            self.bodies[last_identity] = i
+
         self.positions[i], self.positions[-1] = self.positions[-1], self.positions[i]
         self.masses[i], self.masses[-1] = self.masses[-1], self.masses[i]
 
         # 4. remove last element
-        del self.identifiers[-1]
+        del self.bodies[identity]
         self.positions = self.positions[:-1]
         self.masses = self.masses[:-1]
 
     def add_spring(self, identifier, a, b, length, stiffness=1) -> None:
         """Adds a spring"""
-        i = self.index_of(a)
-        j = self.index_of(b)
+        i = self.bodies[a]
+        j = self.bodies[b]
         self.springs[identifier] = (i, j, length, stiffness, self.t)
 
     def remove_spring(self, identifier):
@@ -111,10 +110,3 @@ class Simulation:
         k4 = dt * v(p + k3, t + dt)
         self.positions = p + (k1 + 2 * k2 + 2 * k3 + k4) / 6
         self.t += dt
-
-    def __contains__(self, identifier) -> bool:
-        try:
-            self.index_of(identifier)
-            return True
-        except ValueError:
-            return False

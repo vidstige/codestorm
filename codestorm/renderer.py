@@ -54,7 +54,9 @@ class Renderer:
         
         mx, my = w // 2, h // 2
         scale = min(w, h)
-        items = [(self.properties.get(identifier, self.default_properties), position) for identifier, position in zip(self.simulation.identifiers, self.simulation.positions)]
+        positions = self.simulation.positions
+        items = [(self.properties.get(identifier, self.default_properties), positions[index]) for identifier, index in self.simulation.bodies.items()]
+
         for properties, (x, y) in sorted(items, key=lambda item: item[0].z, reverse=True):
             ctx.save()
             ctx.translate(mx + x * scale, my + y * scale)

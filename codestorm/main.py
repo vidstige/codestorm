@@ -214,7 +214,7 @@ def codestorm(commits: Iterable[Commit], config: Config):
         else:
             # Add body for author (if needed) and update timestamp
             author = commit.committer.login
-            if author not in simulation:
+            if author not in simulation.bodies:
                 simulation.add_body(np.random.rand(1, 2) - 0.5, author)
 
                 # add springs between all other authors
@@ -231,7 +231,7 @@ def codestorm(commits: Iterable[Commit], config: Config):
             # Add body for file (if needed) and update timestamp
             for phile in commit.files or tuple():
                 filename = os.path.basename(phile.filename)
-                if filename not in simulation:
+                if filename not in simulation.bodies:
                     simulation.add_body(np.random.rand(1, 2) - 0.5, filename)
 
                 pt, pi = files.get(filename, (simulation.get_time(), 0))
