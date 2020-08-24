@@ -218,9 +218,9 @@ def codestorm(commits: Iterable[Commit], config: Config):
                 simulation.add_body(np.random.rand(1, 2) - 0.5, author)
 
                 # add springs between all other authors
-                for peer in authors:
-                    sid = '-'.join(sorted([peer, author]))
-                    simulation.add_spring(sid, peer, author, 0.3, 0.01)                
+                #for peer in authors:
+                #    sid = '-'.join(sorted([peer, author]))
+                #    simulation.add_spring(sid, peer, author, 0.3, 1.1)                
 
             # update timestamp and intensity
             pt, pi = authors.get(author, (simulation.get_time(), 0))
