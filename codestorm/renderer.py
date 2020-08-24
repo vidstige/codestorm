@@ -28,16 +28,16 @@ class RenderProperties:
     def __init__(self, color, radius, z=0, label=None):
         self.radius = radius
         self.z = z
-        self.label = label
         self.pattern = RenderProperties.radial_pattern(color)
         
 
 class Renderer:
     default_properties = RenderProperties((0.42, 0.22, 1), 3)
     
-    def __init__(self, output, simulation, resolution, fg=(1, 1, 1), bg=(0, 0, 0)):
+    def __init__(self, output, simulation, labels, resolution, fg=(1, 1, 1), bg=(0, 0, 0)):
         self.output = output
         self.simulation = simulation
+        self.labels = labels
         width, height = resolution
         self.surface = cairo.ImageSurface(cairo.Format.RGB24, width, height)
         self.fg = fg
@@ -55,23 +55,24 @@ class Renderer:
         mx, my = w // 2, h // 2
         scale = min(w, h)
         positions = self.simulation.positions
-        items = [(self.properties.get(identifier, self.default_properties), positions[index]) for identifier, index in self.simulation.bodies.items()]
+        items = [(identifier, self.properties.get(identifier, self.default_properties), positions[index]) for identifier, index in self.simulation.bodies.items()]
 
-        for properties, (x, y) in sorted(items, key=lambda item: item[0].z, reverse=True):
+        for identifier, properties, (x, y) in sorted(items, key=lambda item: item[1].z, reverse=True):
             ctx.save()
             ctx.translate(mx + x * scale, my + y * scale)
-            ctx.scale(2*properties.radius, 2*properties.radius)
+            ctx.scale(2 * properties.radius, 2 * properties.radius)
             ctx.rectangle(0, 0, 1, 1)
             ctx.clip()
             ctx.set_source(properties.pattern)
             ctx.mask(properties.pattern)
             ctx.restore()
 
-            if properties.label:
-                extents = ctx.text_extents(properties.label)
+            if identifier in self.labels:
+                label = identifier
+                extents = ctx.text_extents(label)
                 ctx.move_to(mx + x * scale - extents.x_bearing - (extents.width / 2) + properties.radius, my + y * scale + extents.height + properties.radius)
                 ctx.set_source_rgb(*self.fg)
-                ctx.show_text(properties.label)
+                ctx.show_text(label)
                 
         
         # overlay

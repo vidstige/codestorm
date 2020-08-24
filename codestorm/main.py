@@ -82,11 +82,10 @@ def size(commit: Commit) -> float:
     return sum(f.additions + f.changes + f.deletions for f in commit.files)
 
 
-def from_intensity(original: RenderProperties, intensity: Intensity, label: str=None) -> RenderProperties:
+def from_intensity(original: RenderProperties, intensity: Intensity) -> RenderProperties:
     """Compute render properties from original + intensity"""
     properties = copy(original)
     properties.radius = np.clip(original.radius * np.log(intensity), 1, 128)
-    properties.label = label
     return properties
 
 
@@ -163,16 +162,21 @@ def codestorm(commits: Iterable[Commit], config: Config):
 
     simulation = TickSimulation(timedelta(days=1), stiffness=stiffness)
 
-    renderer = Renderer(
-        sys.stdout.buffer,
-        simulation,
-        (640, 480),
-        bg=config.background,
-        fg=config.foreground)
 
     # maps identifiers to timestamps, intensity tuples
     files = {}
     authors = {}
+
+    labels = authors
+
+    renderer = Renderer(
+        sys.stdout.buffer,
+        simulation,
+        labels,
+        (640, 480),
+        bg=config.background,
+        fg=config.foreground)
+
 
     # find start time
     commit_iterator = iter(commits)
@@ -203,7 +207,7 @@ def codestorm(commits: Iterable[Commit], config: Config):
             t = simulation.get_time()
             for author, (timestamp, intensity) in authors.items():
                 i = intensity_at(t - timestamp, intensity, author_duration)
-                renderer.properties[author] = from_intensity(config.author_properties, i, label=author)
+                renderer.properties[author] = from_intensity(config.author_properties, i)
 
             for filename, (timestamp, intensity) in files.items():
                 i = intensity_at(t - timestamp, intensity, file_duration)
@@ -314,8 +318,9 @@ def main():
         update_from_json(config, json.load(f))
 
     if args.render:
+        import itertools
         commits = storage.commits()
-        codestorm(commits, config)
+        codestorm(itertools.islice(commits, 1000, None), config)
         #for commit in commits:
         #    print(commit.sha)
 
