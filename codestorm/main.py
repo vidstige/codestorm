@@ -6,11 +6,12 @@ import json
 import os
 from pathlib import Path
 import sys
-from typing import Dict, Iterable
+from typing import BinaryIO, Dict, Iterable
 
 import numpy as np
 
 from codestorm.fetch import GithubAPI, Cloning, Slug
+from codestorm.ffmpeg import FFmpeg, Resolution, Raw
 from codestorm.storage import DirectoryStorage, SQLiteStorage, Commit
 from codestorm.renderer import RenderProperties, Renderer
 from codestorm.simulation import Simulation
@@ -92,6 +93,10 @@ def from_intensity(original: RenderProperties, intensity: Intensity) -> RenderPr
 class Config:
     def __init__(self, seed=None, file_types={}):
         self.seed = seed
+        self.resolution = '640x480'
+        self.video_format = None
+        self.framerate = 30
+
         self.foreground = None
         self.background = None
         self.file_types = file_types
@@ -139,15 +144,18 @@ def update_from_json(config: Config, keys: Dict):
     config.foreground = parse(keys.get('foreground')).get('color', Color.WHITE)
     config.background = parse(keys.get('background')).get('color', Color.BLACK)
 
+    config.resolution = Resolution.parse(keys.get('resolution', "640x480"))
+    config.video_format = keys.get('video_format')
+    config.framerate = keys.get('framerate', 30)
+
     for filetype in keys.get('filetypes', []):
         for extension in filetype['extensions']:
             config.file_types[extension] = Color(filetype['color']).color
-        
 
 
 import os
 
-def codestorm(commits: Iterable[Commit], config: Config):
+def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
     # the duration a force is active
     spring_duration = timedelta(weeks=52)
     file_duration = timedelta(weeks=28)
@@ -162,7 +170,6 @@ def codestorm(commits: Iterable[Commit], config: Config):
 
     simulation = TickSimulation(timedelta(days=1), stiffness=stiffness)
 
-
     # maps identifiers to timestamps, intensity tuples
     files = {}
     authors = {}
@@ -170,10 +177,10 @@ def codestorm(commits: Iterable[Commit], config: Config):
     labels = authors
 
     renderer = Renderer(
-        sys.stdout.buffer,
+        target,
         simulation,
         labels,
-        (640, 480),
+        config.resolution.pair(),
         bg=config.background,
         fg=config.foreground)
 
@@ -320,7 +327,9 @@ def main():
     if args.render:
         import itertools
         commits = storage.commits()
-        codestorm(itertools.islice(commits, 1000, None), config)
+        video_format = Raw('rgb32', config.resolution, 30)
+        with FFmpeg('ffplay').convert(video_format=video_format) as session:
+            codestorm(itertools.islice(commits, 1000, None), config, session.buffer)
         #for commit in commits:
         #    print(commit.sha)
 
