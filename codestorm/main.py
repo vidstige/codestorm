@@ -226,7 +226,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
             # Add body for author (if needed) and update timestamp
             author = commit.committer.login
             if author not in simulation.bodies:
-                simulation.add_body(np.random.rand(1, 2) - 0.5, author)
+                simulation.add_body(np.random.rand(1, 2) - 0.5, author, mass=10)
 
                 # add springs between all other authors
                 #for peer in authors:
@@ -243,7 +243,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
             for phile in commit.files or tuple():
                 filename = os.path.basename(phile.filename)
                 if filename not in simulation.bodies:
-                    simulation.add_body(np.random.rand(1, 2) - 0.5, filename)
+                    simulation.add_body(np.random.rand(1, 2) - 0.5, filename, mass=1)
 
                 pt, pi = files.get(filename, (simulation.get_time(), 0))
                 spillover = intensity_at(age=simulation.get_time() - pt, intensity=pi, duration=author_duration)

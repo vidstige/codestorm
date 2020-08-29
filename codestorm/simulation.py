@@ -19,7 +19,7 @@ class Simulation:
         self.t = 0
         self.positions = np.empty((0, 2))
         self.bodies = {}  # maps body identifer to index
-        self.masses = np.empty((0, 1))
+        self.masses = np.empty((0,))
         self.springs = {}
         self.stiffness = stiffness
 
@@ -30,7 +30,7 @@ class Simulation:
         assert position.shape[1] == self.positions.shape[1]
         self.bodies[identity] = len(self.positions)
         self.positions = np.vstack((self.positions, position))
-        self.masses = np.vstack((self.masses, mass))
+        self.masses = np.append(self.masses, mass)
         return identity
 
     def remove_body(self, identity) -> None:
@@ -94,9 +94,10 @@ class Simulation:
         forces = (norms - ll) * self.stiffness(np.array(ss), age)
 
         # compute accelerations and accumulate
-        mass = 1
-        v[ii] += (di / norms[:, None]) * forces[:, None] / mass
-        v[jj] += (dj / norms[:, None]) * forces[:, None] / mass
+        mi = self.masses[ii]
+        mj = self.masses[jj]
+        v[ii] += (di / norms[:, None]) * forces[:, None] / mi[:, None]
+        v[jj] += (dj / norms[:, None]) * forces[:, None] / mj[:, None]
         return v
 
     def step(self, dt: float):
