@@ -5,6 +5,9 @@ class NamedUser:
     def __init__(self, login):
         self.login = login
 
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, self.login)
+
 
 class File:
     def __init__(self, filename, additions, changes, deletions):
@@ -36,6 +39,14 @@ class Commit:
         if self.last_modified is None:
             return True
         return other.last_modified <= self.last_modified
+
+    def __repr__(self) -> str:
+        return "{}({}, {}, {}, {})".format(
+            self.__class__.__name__,
+            self.sha,
+            self.last_modified,
+            self.committer,
+            self.files)
 
 
 def last_modified(commit) -> datetime:
