@@ -8,7 +8,11 @@ from codestorm.commit import NamedUser, File, Commit, last_modified
 
 # To store commits
 class Storage:
-    pass
+    def commits(self) -> Iterable[Commit]:
+        return []
+
+    def store(self, commit: Commit) -> None:
+        pass
 
 
 import sqlite3
@@ -50,7 +54,7 @@ class SQLiteStorage(Storage):
     def __contains__(self, commit) -> bool:
         return False    
 
-    def store(self, commit):
+    def store(self, commit: Commit):
         cursor = self.connection.cursor()
         cursor.execute("INSERT INTO commits (timestamp, sha, committer, files) values ('{timestamp}', '{sha}', '{committer}', '{files}')".format(
             timestamp=commit.last_modified,
@@ -60,7 +64,7 @@ class SQLiteStorage(Storage):
         ))
         self.connection.commit()
 
-    def commits(self) -> Iterable:
+    def commits(self) -> Iterable[Commit]:
         cursor = self.connection.cursor()
         rows = cursor.execute('SELECT timestamp, sha, committer, files FROM commits ORDER BY timestamp')
         for row in rows:

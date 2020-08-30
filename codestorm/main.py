@@ -12,6 +12,7 @@ import numpy as np
 
 from codestorm.fetch import GithubAPI, Cloning, Slug
 from codestorm.ffmpeg import FFmpeg, Resolution, Raw, VideoFormat, H264
+from codestorm.mailmap import Mailmap
 from codestorm.storage import DirectoryStorage, SQLiteStorage, Commit
 from codestorm.renderer import RenderProperties, Renderer
 from codestorm.simulation import Simulation
@@ -104,6 +105,8 @@ class Config:
         self.author_properties = None
         self._properties_cache = {}
 
+        self.mailmap = None
+
     def render_properties_for(self, filename: str):
         color = self.file_types.get(Path(filename).suffix, self.file_types[None])
         properties = self._properties_cache.get(color)
@@ -145,6 +148,7 @@ def update_from_dict(config: Config, keys: Dict):
     config.foreground = parse(keys.get('foreground')).get('color', Color.WHITE)
     config.background = parse(keys.get('background')).get('color', Color.BLACK)
     config.output = keys.get('output')
+    config.mailmap = keys.get('mailmap')
 
     config.resolution = Resolution.parse(keys.get('resolution', "640x480"))
     config.video_format = keys.get('video_format')
@@ -337,19 +341,23 @@ def main():
                 print(commit.sha)
                 storage.store(commit)
     
-    #commits = storage.commits()
-    #everything = []
-    #for commit in commits:
-    #    for f in commit.files:
-    #        suffix = Path(f.filename).suffix
-    #        everything.append(suffix)
-    #from collections import Counter
-    #print(Counter(everything))
     config = Config()
     config_file = args.config
     with config_file.open() as f:
         update_from_dict(config, json.load(f))
     update_from_args(config, args)
+    
+    storage = Mailmap(config.mailmap, storage)
+
+    #
+    #commits = storage.commits()
+    #everything = []
+    #for commit in commits:
+    #    everything.append(commit.committer.login)
+
+    #from collections import Counter
+    #for value, count in Counter(everything).most_common():
+    #    print("{value}: {count}".format(value=value, count=count))
 
     if args.render:
         import itertools
