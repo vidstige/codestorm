@@ -17,5 +17,8 @@
             ".jpeg", ".jpg", ".gif", ".png", ".bmp", ".svg",
             ".ply", ".obj",
             ".txt", ".csv", ".json"] }
-    ]
+    ],
+    "resolution": "1024x768",
+    "output": null,
+    "framerate": 30
 }

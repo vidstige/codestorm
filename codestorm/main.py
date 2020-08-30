@@ -6,12 +6,12 @@ import json
 import os
 from pathlib import Path
 import sys
-from typing import BinaryIO, Dict, Iterable
+from typing import BinaryIO, Dict, Iterable, Optional
 
 import numpy as np
 
 from codestorm.fetch import GithubAPI, Cloning, Slug
-from codestorm.ffmpeg import FFmpeg, Resolution, Raw
+from codestorm.ffmpeg import FFmpeg, Resolution, Raw, VideoFormat, H264
 from codestorm.storage import DirectoryStorage, SQLiteStorage, Commit
 from codestorm.renderer import RenderProperties, Renderer
 from codestorm.simulation import Simulation
@@ -96,6 +96,7 @@ class Config:
         self.resolution = '640x480'
         self.video_format = None
         self.framerate = 30
+        self.output = None
 
         self.foreground = None
         self.background = None
@@ -138,11 +139,12 @@ def parse(keys: Dict):
     return  {key: parse_value(key, value) for key, value in keys.items()}
 
 
-def update_from_json(config: Config, keys: Dict):
+def update_from_dict(config: Config, keys: Dict):
     config.seed = keys.get('seed', config.seed)
     config.author_properties = RenderProperties(**parse(keys.get('author')))
     config.foreground = parse(keys.get('foreground')).get('color', Color.WHITE)
     config.background = parse(keys.get('background')).get('color', Color.BLACK)
+    config.output = keys.get('output')
 
     config.resolution = Resolution.parse(keys.get('resolution', "640x480"))
     config.video_format = keys.get('video_format')
@@ -151,6 +153,11 @@ def update_from_json(config: Config, keys: Dict):
     for filetype in keys.get('filetypes', []):
         for extension in filetype['extensions']:
             config.file_types[extension] = Color(filetype['color']).color
+
+
+def update_from_args(config: Config, args):
+    if args.output:
+        config.output = args.output
 
 
 import os
@@ -287,6 +294,25 @@ def add_bool_arg(parser, name: str, default=False):
     parser.set_defaults(**{name: default})
 
 
+def _video_format_for(path: Optional[Path]) -> Optional[VideoFormat]:
+    """Returns suitable video format for the given path"""
+    if path is None:
+        return None
+    if path.suffix in ('.mkv',):
+        return H264(pixel_format='yuv420p', crf=18, preset='slow')
+    return None
+
+
+def _make_session(config: Config):
+    video_format = Raw('rgb32', config.resolution, 30)
+    if config.output:
+        return FFmpeg().convert(
+            video_format=video_format,
+            target=config.output,
+            target_format=_video_format_for(config.output))
+    return FFmpeg('ffplay').convert(video_format=video_format)
+
+
 def main():
     parser = argparse.ArgumentParser(description='codestorm')
     parser.add_argument(
@@ -295,7 +321,7 @@ def main():
         '--download', metavar='repos', type=str, nargs='*',
         help='downloads')
     parser.add_argument('--config', type=Path, default=Path('codestorm.json'))
-
+    parser.add_argument('--output', type=Path, default=None)
     add_bool_arg(parser, 'render', True)
 
     args = parser.parse_args()
@@ -322,14 +348,14 @@ def main():
     config = Config()
     config_file = args.config
     with config_file.open() as f:
-        update_from_json(config, json.load(f))
+        update_from_dict(config, json.load(f))
+    update_from_args(config, args)
 
     if args.render:
         import itertools
         commits = storage.commits()
-        video_format = Raw('rgb32', config.resolution, 30)
-        with FFmpeg('ffplay').convert(video_format=video_format) as session:
-            codestorm(itertools.islice(commits, 1000, None), config, session.buffer)
+        with _make_session(config) as session:
+            codestorm(itertools.islice(commits, 1000, 5000), config, session.buffer)
         #for commit in commits:
         #    print(commit.sha)
 
