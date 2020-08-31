@@ -202,7 +202,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
     commit_iterator = itertools.chain([first], commit_iterator)
 
     # create frame generator
-    render_instruction = Commit(None, None, None, None)
+    render_instruction = Commit(None, None, None, None, None)
     start_time = last_modified(first) - timedelta(days=2)
     commit_timestamps = ((last_modified(c), c) for c in commits)
     frame_timestamps = ((timestamp, render_instruction) for timestamp in steady(start_time, timedelta(days=0.5)))
@@ -291,13 +291,6 @@ def last_modified(commit) -> datetime:
         '%Y-%m-%d %H:%M:%S')
 
 
-def add_bool_arg(parser, name: str, default=False):
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument('--{}'.format(name), dest=name, action='store_true')
-    group.add_argument('--no-{}'.format(name), dest=name, action='store_false')
-    parser.set_defaults(**{name: default})
-
-
 def _video_format_for(path: Optional[Path]) -> Optional[VideoFormat]:
     """Returns suitable video format for the given path"""
     if path is None:
@@ -317,27 +310,41 @@ def _make_session(config: Config):
     return FFmpeg('ffplay').convert(video_format=video_format)
 
 
+def boolean(value: str):
+    if value.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    if value.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
+def download(slug: Slug) -> None:
+    pass
+
+
 def main():
     parser = argparse.ArgumentParser(description='codestorm')
     parser.add_argument(
-        '--cache', type=Path, default=Path("commit-cache/"))
+        '--cache', type=Path, default=Path("commits.db"))
     parser.add_argument(
-        '--download', metavar='repos', type=str, nargs='*',
-        help='downloads')
-    parser.add_argument('--config', type=Path, default=Path('codestorm.json'))
-    parser.add_argument('--output', type=Path, default=None)
-    add_bool_arg(parser, 'render', True)
+        '--fetch', action='store_true',
+        help='Fetch latest commits specified repos, even if some exists in cache')
+    parser.add_argument(
+        '--config', type=Path, default=Path('codestorm.json'),
+        help="Path to config file to use")
+    parser.add_argument(
+        '--output', type=Path, default=None,
+        help="Output file to write to, if not specified output will be drawn instead")
+    parser.add_argument('repositories', nargs='+', type=Slug.from_string)
 
     args = parser.parse_args()
 
-    #storage = DirectoryStorage(args.cache)
-    storage = SQLiteStorage('commits.db')
-    #fetcher = GithubAPI()
+    storage = SQLiteStorage(str(args.cache))
     fetcher = Cloning()
-    for repo_slug in args.download or []:
-        slug = Slug.from_string(repo_slug)
-        for commit in fetcher.commits(slug):
-            if commit not in storage:
+    
+    for slug in args.repositories:
+        if args.fetch:
+            for commit in fetcher.commits(slug):
                 print(commit.sha)
                 storage.store(commit)
     
@@ -359,13 +366,9 @@ def main():
     #for value, count in Counter(everything).most_common():
     #    print("{value}: {count}".format(value=value, count=count))
 
-    if args.render:
-        import itertools
-        commits = storage.commits()
-        with _make_session(config) as session:
-            codestorm(itertools.islice(commits, 1000, 5000), config, session.buffer)
-        #for commit in commits:
-        #    print(commit.sha)
+    commits = storage.commits()
+    with _make_session(config) as session:
+        codestorm(commits, config, session.buffer)
 
 
 if __name__ == "__main__":

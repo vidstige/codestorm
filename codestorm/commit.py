@@ -1,6 +1,24 @@
 from datetime import datetime
 
 
+class Slug:
+    def __init__(self, owner: str, repository: str):
+        self.owner = owner
+        self.repository = repository
+
+    def __str__(self) -> str:
+        return '{owner}/{repository}'.format(
+            owner=self.owner,
+            repository=self.repository)
+
+    @staticmethod
+    def from_string(s: str):
+        parts = s.split('/')
+        if len(parts) == 2:
+            return Slug(*parts)
+        raise ValueError('Invalid slug: {}'.format(s))
+
+
 class NamedUser:
     def __init__(self, login):
         self.login = login
@@ -25,7 +43,8 @@ class File:
         
 
 class Commit:
-    def __init__(self, sha, last_modified, committer, files):
+    def __init__(self, slug: Slug, sha, last_modified, committer, files):
+        self.slug = slug
         self.sha = sha
         self.last_modified = last_modified
         self.committer = committer
@@ -41,8 +60,9 @@ class Commit:
         return other.last_modified <= self.last_modified
 
     def __repr__(self) -> str:
-        return "{}({}, {}, {}, {})".format(
+        return "{}({}, {}, {}, {}, {})".format(
             self.__class__.__name__,
+            self.slug,
             self.sha,
             self.last_modified,
             self.committer,

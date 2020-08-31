@@ -3,7 +3,7 @@ from pathlib import Path
 import pickle
 from typing import Iterable
 
-from codestorm.commit import NamedUser, File, Commit, last_modified
+from codestorm.commit import NamedUser, File, Commit, last_modified, Slug
 
 
 # To store commits
@@ -47,8 +47,19 @@ class SQLiteStorage(Storage):
     
     def _create_tables(self):
         cursor = self.connection.cursor()
+        # commit table
         cursor.execute(
-            '''CREATE TABLE IF NOT EXISTS commits (timestamp DATETIME, sha TEXT, committer TEXT, files TEXT)''')
+            '''CREATE TABLE IF NOT EXISTS commits (owner TEXT, repository TEXT, sha TEXT, timestamp DATETIME, committer TEXT, files TEXT)''')
+        # sha index
+        cursor.execute(
+            '''CREATE UNIQUE INDEX IF NOT EXISTS sha_index ON commits (sha)''')
+        # timestamp index
+        cursor.execute(
+            '''CREATE INDEX IF NOT EXISTS timestamp_index ON commits (timestamp)''')
+        # committer index
+        cursor.execute(
+            '''CREATE INDEX IF NOT EXISTS committer_index ON commits (committer)''')
+
         self.connection.commit()
 
     def __contains__(self, commit) -> bool:
@@ -56,7 +67,9 @@ class SQLiteStorage(Storage):
 
     def store(self, commit: Commit):
         cursor = self.connection.cursor()
-        cursor.execute("INSERT INTO commits (timestamp, sha, committer, files) values ('{timestamp}', '{sha}', '{committer}', '{files}')".format(
+        cursor.execute("INSERT INTO commits (owner, repository, sha, timestamp, committer, files) values ('{owner}', '{repository}', '{sha}', '{timestamp}', '{committer}', '{files}')".format(
+            owner=commit.slug.owner,
+            repository=commit.slug.repository,
             timestamp=commit.last_modified,
             sha=commit.sha,
             committer=commit.committer.login if commit.committer else None,
@@ -66,10 +79,11 @@ class SQLiteStorage(Storage):
 
     def commits(self) -> Iterable[Commit]:
         cursor = self.connection.cursor()
-        rows = cursor.execute('SELECT timestamp, sha, committer, files FROM commits ORDER BY timestamp')
+        rows = cursor.execute('SELECT owner, repository, sha, timestamp, committer, files FROM commits ORDER BY timestamp')
         for row in rows:
-            timestamp, sha, comitter_login, files_raw = row
+            owner, repository, sha, timestamp, comitter_login, files_raw = row
             commit = Commit(
+                slug=Slug(owner, repository),
                 last_modified=timestamp,
                 sha=sha,
                 committer=NamedUser(login=comitter_login),

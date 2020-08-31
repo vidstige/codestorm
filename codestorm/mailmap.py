@@ -24,6 +24,7 @@ class Mailmap(Storage):
     def commits(self) -> Iterable[Commit]:
         for commit in self.inner.commits():
             yield Commit(
+                commit.slug,
                 commit.sha,
                 commit.last_modified,
                 self._map(commit.committer),

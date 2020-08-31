@@ -5,22 +5,8 @@ from pathlib import Path
 
 from github import Github
 
-from codestorm.commit import Commit, File, NamedUser
+from codestorm.commit import Commit, File, NamedUser, Slug
 
-
-class Slug:
-    def __init__(self, owner: str, repository: str):
-        self.owner = owner
-        self.repository = repository
-
-    def __str__(self) -> str:
-        return '{owner}/{repository}'.format(
-            owner=self.owner,
-            repository=self.repository)
-
-    @staticmethod
-    def from_string(s: str):
-        return Slug(*s.split('/'))
 
 
 class Fetcher:
@@ -106,6 +92,7 @@ class Cloning(Fetcher):
                 else:
                     break
             yield Commit(
+                slug=slug,
                 sha=sha,
                 last_modified=timestamp,
                 committer=NamedUser(login=email),
