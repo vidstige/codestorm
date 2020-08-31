@@ -1,7 +1,11 @@
 venv/
 __pycache__/
+*.pyc
+
 .token
 output.raw
 commit-cache/
 commits.db
 .repos/
+
+mailmap.json
