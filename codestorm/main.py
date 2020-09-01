@@ -325,13 +325,13 @@ def download(slug: Slug) -> None:
 def main():
     parser = argparse.ArgumentParser(description='codestorm')
     parser.add_argument(
+        '--config', type=Path, default=Path('codestorm.json'),
+        help="Path to config file to use")
+    parser.add_argument(
         '--cache', type=Path, default=Path("commits.db"))
     parser.add_argument(
         '--fetch', action='store_true',
         help='Fetch latest commits specified repos, even if some exists in cache')
-    parser.add_argument(
-        '--config', type=Path, default=Path('codestorm.json'),
-        help="Path to config file to use")
     parser.add_argument(
         '--output', type=Path, default=None,
         help="Output file to write to, if not specified output will be drawn instead")
@@ -339,8 +339,17 @@ def main():
 
     args = parser.parse_args()
 
+    # create config from arguments
+    config = Config()
+    config_file = args.config
+    with config_file.open() as f:
+        update_from_dict(config, json.load(f))
+    update_from_args(config, args)
+
     storage = SQLiteStorage(str(args.cache))
     fetcher = Cloning()
+
+    storage = Mailmap(config.mailmap, storage)
     
     for slug in args.repositories:
         if args.fetch:
@@ -348,13 +357,6 @@ def main():
                 print(commit.sha)
                 storage.store(commit)
     
-    config = Config()
-    config_file = args.config
-    with config_file.open() as f:
-        update_from_dict(config, json.load(f))
-    update_from_args(config, args)
-    
-    storage = Mailmap(config.mailmap, storage)
 
     #
     #commits = storage.commits()
@@ -365,6 +367,7 @@ def main():
     #from collections import Counter
     #for value, count in Counter(everything).most_common():
     #    print("{value}: {count}".format(value=value, count=count))
+    #import itertools; itertools.islice(commits, 1000, 5000)
 
     commits = storage.commits()
     with _make_session(config) as session:
