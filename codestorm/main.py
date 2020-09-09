@@ -1,4 +1,3 @@
-import argparse
 from copy import copy
 from datetime import datetime, timedelta
 import itertools
@@ -8,13 +7,15 @@ from pathlib import Path
 import sys
 from typing import BinaryIO, Dict, Iterable, Optional
 
+import click
+import click_config_file
 import numpy as np
 
 from codestorm.fetch import GithubAPI, Cloning, Slug
 from codestorm.ffmpeg import FFmpeg, Resolution, Raw, VideoFormat, H264
 from codestorm.mailmap import Mailmap
 from codestorm.storage import DirectoryStorage, SQLiteStorage, Commit
-from codestorm.renderer import RenderProperties, Renderer
+from codestorm.renderer import Color, RenderProperties, Renderer
 from codestorm.simulation import Simulation
 
 
@@ -92,48 +93,33 @@ def from_intensity(original: RenderProperties, intensity: Intensity) -> RenderPr
 
 
 class Config:
-    def __init__(self, seed=None, file_types={}):
+    def __init__(
+            self, seed: int, resolution: Resolution, foreground: Color, background: Color):
         self.seed = seed
-        self.resolution = '640x480'
-        self.video_format = None
-        self.framerate = 30
-        self.output = None
+        self.resolution = resolution
+        self.foreground = foreground
+        self.background = background
+        self.author_properties = RenderProperties(
+            color=Color.parse("#47a276"), radius=2, z=-1
+        )
+        self.file_properties = RenderProperties(
+            color=Color.parse("#9c74c2"), radius=2,
+        )
 
-        self.foreground = None
-        self.background = None
-        self.file_types = file_types
-        self.author_properties = None
-        self._properties_cache = {}
-
-        self.mailmap = None
 
     def render_properties_for(self, filename: str):
-        color = self.file_types.get(Path(filename).suffix, self.file_types[None])
-        properties = self._properties_cache.get(color)
-        if not properties:
-            properties = RenderProperties(color, radius=4)
-            self._properties_cache[color] = properties
-        return properties
-
-
-def remove_prefix(text: str, prefixes: Iterable[str]) -> str:
-    for prefix in prefixes:
-        if text.startswith(prefix):
-            return text[len(prefix):]
-    return text
-
-
-class Color:
-    BLACK = (0, 0, 0)
-    WHITE = (1, 1, 1)
-    def __init__(self, raw: str):
-        r, g, b = bytes.fromhex(remove_prefix(raw, ['#', '0x']))
-        self.color = (r / 255, g / 255, b / 255)
+        #color = self.file_types.get(Path(filename).suffix, self.file_types[None])
+        #properties = self._properties_cache.get(color)
+        #if not properties:
+        #    properties = RenderProperties(color, radius=4)
+        #    self._properties_cache[color] = properties
+        #return properties
+        return self.file_properties
 
 
 def parse_value(key, value):
     if key == "color":
-        return Color(value).color
+        return Color.parse(value).color
     return value
 
 
@@ -156,7 +142,7 @@ def update_from_dict(config: Config, keys: Dict):
 
     for filetype in keys.get('filetypes', []):
         for extension in filetype['extensions']:
-            config.file_types[extension] = Color(filetype['color']).color
+            config.file_types[extension] = Color.parse(filetype['color']).color
 
 
 def update_from_args(config: Config, args):
@@ -300,62 +286,62 @@ def _video_format_for(path: Optional[Path]) -> Optional[VideoFormat]:
     return None
 
 
-def _make_session(config: Config):
-    video_format = Raw('rgb32', config.resolution, 30)
-    if config.output:
+def _make_session(resolution: Resolution, output: Optional[Path]):
+    video_format = Raw('rgb32', resolution, 30)
+    if output:
         return FFmpeg().convert(
             video_format=video_format,
-            target=config.output,
-            target_format=_video_format_for(config.output))
+            target=output,
+            target_format=_video_format_for(output))
     return FFmpeg('ffplay').convert(video_format=video_format)
 
 
-def boolean(value: str):
-    if value.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    if value.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    raise argparse.ArgumentTypeError('Boolean value expected.')
+@click.command(name="codestorm")
+@click.option('--seed', type=click.INT, help="Random seed to use")
+@click.option('--framerate', type=click.FLOAT, help="Framerate")
+@click.option('--resolution', type=Resolution.parse, help="Resolution to render to")
+@click.option('--foreground', type=Color.parse, help="Foreground color")
+@click.option('--background', type=Color.parse, help="Background color")
+@click.option('--output', type=click.Path(), help="File to render to, if omitted video will be displayed instead")
+@click.argument('repositories', type=Slug.from_string, nargs=-1)
+@click_config_file.configuration_option(exists=True, cmd_name='codestorm')
+def main(
+        seed, framerate,
+        resolution: Resolution, foreground: Optional[Color], background: Optional[Color],
+        output, repositories):
 
+    #parser = argparse.ArgumentParser(description='codestorm')
+    #parser.add_argument(
+    #    '--config', type=Path, default=Path('codestorm.json'),
+    #    help="Path to config file to use")
+    #parser.add_argument(
+    #    '--cache', type=Path, default=Path("commits.db"))
+    #parser.add_argument(
+    #    '--fetch', action='store_true',
+    #     help='Fetch latest commits specified repos, even if some exists in cache')
+    # parser.add_argument(
+    #     '--output', type=Path, default=None,
+    #     help="Output file to write to, if not specified output will be drawn instead")
+    # parser.add_argument('repositories', nargs='+', type=Slug.from_string)
 
-def download(slug: Slug) -> None:
-    pass
+    # args = parser.parse_args()
 
+    # # create config from arguments
+    # config = Config()
+    # config_file = args.config
+    # with config_file.open() as f:
+    #     update_from_dict(config, json.load(f))
+    # update_from_args(config, args)
 
-def main():
-    parser = argparse.ArgumentParser(description='codestorm')
-    parser.add_argument(
-        '--config', type=Path, default=Path('codestorm.json'),
-        help="Path to config file to use")
-    parser.add_argument(
-        '--cache', type=Path, default=Path("commits.db"))
-    parser.add_argument(
-        '--fetch', action='store_true',
-        help='Fetch latest commits specified repos, even if some exists in cache')
-    parser.add_argument(
-        '--output', type=Path, default=None,
-        help="Output file to write to, if not specified output will be drawn instead")
-    parser.add_argument('repositories', nargs='+', type=Slug.from_string)
-
-    args = parser.parse_args()
-
-    # create config from arguments
-    config = Config()
-    config_file = args.config
-    with config_file.open() as f:
-        update_from_dict(config, json.load(f))
-    update_from_args(config, args)
-
-    storage = SQLiteStorage(str(args.cache))
+    storage = SQLiteStorage(str(Path('commmits.db')))
     fetcher = Cloning()
 
-    storage = Mailmap(config.mailmap, storage)
+    # storage = Mailmap(config.mailmap, storage)
     
-    for slug in args.repositories:
-        if args.fetch:
-            for commit in fetcher.commits(slug):
-                print(commit.sha)
-                storage.store(commit)
+    #for slug in repositories:
+    #    for commit in fetcher.commits(slug):
+    #        print(commit.sha)
+    #        storage.store(commit)
     
 
     #
@@ -370,7 +356,13 @@ def main():
     #import itertools; itertools.islice(commits, 1000, 5000)
 
     commits = storage.commits()
-    with _make_session(config) as session:
+    config = Config(
+        seed=seed,
+        resolution=resolution,
+        foreground=foreground,
+        background=background
+    )
+    with _make_session(resolution, output) as session:
         codestorm(commits, config, session.buffer)
 
 

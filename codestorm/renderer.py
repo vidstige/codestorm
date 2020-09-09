@@ -1,26 +1,48 @@
-import cairo
+from typing import Iterable
 
+import cairo
 import numpy as np
 
 
 TAU = 2 * np.pi
 
 
-def clear(target: cairo.ImageSurface, color=(1, 1, 1)) -> None:
-    r, g, b = color
+def remove_prefix(text: str, prefixes: Iterable[str]) -> str:
+    for prefix in prefixes:
+        if text.startswith(prefix):
+            return text[len(prefix):]
+    return text
+
+
+class Color:
+    BLACK = (0, 0, 0)
+    WHITE = (1, 1, 1)
+    def __init__(self, r: float, g: float, b: float):
+        self.r = r
+        self.g = g
+        self.b = b
+
+    @staticmethod
+    def parse(raw: str):
+        r, g, b = bytes.fromhex(remove_prefix(raw, ['#', '0x']))
+        return Color(r / 255, g / 255, b / 255)
+
+
+
+def clear(target: cairo.ImageSurface, color: Color=Color.WHITE) -> None:
     ctx = cairo.Context(target)
     ctx.rectangle(0, 0, target.get_width(), target.get_height())
-    ctx.set_source_rgb(r, g, b)
+    ctx.set_source_rgb(color.r, color.g, color.b)
     ctx.fill()
 
 
 class RenderProperties:
     @staticmethod
-    def radial_pattern(color) -> cairo.RadialGradient:
+    def radial_pattern(color: Color) -> cairo.RadialGradient:
         pattern = cairo.RadialGradient(
             0.5, 0.5, 0,
             0.5, 0.5, 0.25)
-        r, g, b = color
+        r, g, b = color.r, color.g, color.b
         pattern.add_color_stop_rgba(0, r, g, b, 0.75)
         pattern.add_color_stop_rgba(1, r, g, b, 0)
         return pattern
@@ -32,9 +54,9 @@ class RenderProperties:
         
 
 class Renderer:
-    default_properties = RenderProperties((0.42, 0.22, 1), 3)
+    default_properties = RenderProperties(Color(0.42, 0.22, 1), 3)
     
-    def __init__(self, output, simulation, labels, resolution, fg=(1, 1, 1), bg=(0, 0, 0)):
+    def __init__(self, output, simulation, labels, resolution, fg=Color(1, 1, 1), bg=Color(0, 0, 0)):
         self.output = output
         self.simulation = simulation
         self.labels = labels
@@ -71,12 +93,12 @@ class Renderer:
                 label = identifier
                 extents = ctx.text_extents(label)
                 ctx.move_to(mx + x * scale - extents.x_bearing - (extents.width / 2) + properties.radius, my + y * scale + extents.height + properties.radius)
-                ctx.set_source_rgb(*self.fg)
+                ctx.set_source_rgb(self.fg.r, self.fg.g, self.fg.b)
                 ctx.show_text(label)
                 
         
         # overlay
-        ctx.set_source_rgb(*self.fg)
+        ctx.set_source_rgb(self.fg.r, self.fg.g, self.fg.b)
         ctx.move_to(8, 24)
         ctx.set_font_size(16)
         ctx.show_text(self.simulation.get_time().date().isoformat())
