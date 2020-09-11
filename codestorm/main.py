@@ -296,28 +296,58 @@ def _make_session(resolution: Resolution, output: Optional[Path]):
     return FFmpeg('ffplay').convert(video_format=video_format)
 
 
-@click.command(name="codestorm")
+@click.group(name="codestorm")
+@click.option('--cache', type=click.Path(), default=Path('~/.cache/codestorm').expanduser(), help="Where to store commit cache and repositories")
+@click.option('--mailmap', type=click.Path(exists=True), help="Mailmap file")
+def cli(cache: Path, mailmap: Optional[Path]):
+    pass
+
+
+@cli.command()
 @click.option('--seed', type=click.INT, help="Random seed to use")
 @click.option('--framerate', type=click.FLOAT, help="Framerate")
 @click.option('--resolution', type=Resolution.parse, help="Resolution to render to")
 @click.option('--foreground', type=Color.parse, help="Foreground color")
 @click.option('--background', type=Color.parse, help="Background color")
 @click.option('--output', type=click.Path(), help="File to render to, if omitted video will be displayed instead")
-@click.option('--cache', type=click.Path(), default=Path('~/.cache/codestorm').expanduser(), help="Where to store commit cache and repositories")
-@click.option('--mailmap', type=click.Path(exists=True), help="Mailmap file")
 @click.argument('repositories', type=Slug.from_string, nargs=-1)
 @click_config_file.configuration_option(exists=True, cmd_name='codestorm')
-def main(
-        seed, framerate,
-        resolution: Resolution, foreground: Optional[Color], background: Optional[Color],
-        output, cache: Path, mailmap,
-        repositories):
+@click.pass_context
+def render(
+        ctx,
+        seed: int, framerate: float, resolution: Resolution,
+        foreground: Optional[Color], background: Optional[Color],
+        output: Optional[Path], repositories: Iterable[Slug]):
 
+    cache = ctx.parent.params['cache']
+    storage = SQLiteStorage(cache / 'commmits.db')
+    mailmap = ctx.parent.params['mailmap']
+    if mailmap:
+        storage = Mailmap(mailmap, storage)
+
+    commits = storage.commits()
+    config = Config(
+        seed=seed,
+        resolution=resolution,
+        foreground=foreground,
+        background=background
+    )
+    with _make_session(resolution, output) as session:
+        codestorm(commits, config, session.buffer)
+
+
+@cli.command()
+@click.argument('repositories', type=Slug.from_string, nargs=-1)
+@click_config_file.configuration_option(exists=True, cmd_name='codestorm')
+@click.pass_context
+def fetch(ctx, repositories: Iterable[Slug]):
+    cache = ctx.parent.params['cache']
     cache.mkdir(exist_ok=True)
     storage = SQLiteStorage(cache / 'commmits.db')
 
     fetcher = Cloning(cache / 'repositories')
 
+    mailmap = ctx.parent.params['mailmap']
     if mailmap:
         storage = Mailmap(mailmap, storage)
     
@@ -337,16 +367,6 @@ def main(
     #    print("{value}: {count}".format(value=value, count=count))
     #import itertools; itertools.islice(commits, 1000, 5000)
 
-    commits = storage.commits()
-    config = Config(
-        seed=seed,
-        resolution=resolution,
-        foreground=foreground,
-        background=background
-    )
-    with _make_session(resolution, output) as session:
-        codestorm(commits, config, session.buffer)
-
 
 if __name__ == "__main__":
-    main()
+    cli()
