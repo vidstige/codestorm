@@ -303,26 +303,28 @@ def _make_session(resolution: Resolution, output: Optional[Path]):
 @click.option('--foreground', type=Color.parse, help="Foreground color")
 @click.option('--background', type=Color.parse, help="Background color")
 @click.option('--output', type=click.Path(), help="File to render to, if omitted video will be displayed instead")
+@click.option('--cache', type=click.Path(), default=Path('~/.cache/codestorm').expanduser(), help="Where to store commit cache and repositories")
 @click.option('--mailmap', type=click.Path(exists=True), help="Mailmap file")
 @click.argument('repositories', type=Slug.from_string, nargs=-1)
 @click_config_file.configuration_option(exists=True, cmd_name='codestorm')
 def main(
         seed, framerate,
         resolution: Resolution, foreground: Optional[Color], background: Optional[Color],
-        output, mailmap,
+        output, cache: Path, mailmap,
         repositories):
 
-    storage = SQLiteStorage(str(Path('commmits.db')))
-    fetcher = Cloning()
+    cache.mkdir(exist_ok=True)
+    storage = SQLiteStorage(cache / 'commmits.db')
+
+    fetcher = Cloning(cache / 'repositories')
 
     if mailmap:
         storage = Mailmap(mailmap, storage)
     
-    #for slug in repositories:
-    #    for commit in fetcher.commits(slug):
-    #        print(commit.sha)
-    #        storage.store(commit)
-    
+    for slug in repositories:
+        for commit in fetcher.commits(slug):
+            print(commit.sha)
+            storage.store(commit)
 
     #
     #commits = storage.commits()

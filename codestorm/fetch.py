@@ -34,6 +34,10 @@ class GithubAPI(Fetcher):
 
 
 class Cloning(Fetcher):
+    def __init__(self, path: Path):
+        super()
+        self.path = path
+
     @staticmethod
     def parse_linecount(s: str) -> Optional[int]:
         if s == '-':
@@ -41,8 +45,7 @@ class Cloning(Fetcher):
         return int(s)
 
     def commits(self, slug: Slug) -> Iterable[Commit]:
-        path = Path('.repos')
-        git_directory = path / '{}.git'.format(slug.repository)
+        git_directory = self.path / '{}.git'.format(slug.repository)
         if git_directory.exists():
             ## update
             #command = ['git', 'pull', 'origin', 'master']
@@ -54,8 +57,8 @@ class Cloning(Fetcher):
                 'git', 'clone', '--bare',
                 'git@github.com:{slug}.git'.format(slug=slug)
             ]
-            path.mkdir(exist_ok=True)
-            subprocess.check_call(command, cwd=path)
+            self.path.mkdir(exist_ok=True)
+            subprocess.check_call(command, cwd=self.path)
 
         # fetch commits
 

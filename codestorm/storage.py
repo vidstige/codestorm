@@ -42,7 +42,7 @@ def deserialize_files(raw):
 
 class SQLiteStorage(Storage):
     def __init__(self, path: Path):
-        self.connection = sqlite3.connect(path)
+        self.connection = sqlite3.connect(str(path))
         self._create_tables()
     
     def _create_tables(self):
