@@ -10,6 +10,6 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        codestorm=codestorm.main:cli
+        codestorm=codestorm.main:main
     ''',
 )

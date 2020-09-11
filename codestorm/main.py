@@ -303,40 +303,20 @@ def _make_session(resolution: Resolution, output: Optional[Path]):
 @click.option('--foreground', type=Color.parse, help="Foreground color")
 @click.option('--background', type=Color.parse, help="Background color")
 @click.option('--output', type=click.Path(), help="File to render to, if omitted video will be displayed instead")
+@click.option('--mailmap', type=click.Path(exists=True), help="Mailmap file")
 @click.argument('repositories', type=Slug.from_string, nargs=-1)
 @click_config_file.configuration_option(exists=True, cmd_name='codestorm')
 def main(
         seed, framerate,
         resolution: Resolution, foreground: Optional[Color], background: Optional[Color],
-        output, repositories):
-
-    #parser = argparse.ArgumentParser(description='codestorm')
-    #parser.add_argument(
-    #    '--config', type=Path, default=Path('codestorm.json'),
-    #    help="Path to config file to use")
-    #parser.add_argument(
-    #    '--cache', type=Path, default=Path("commits.db"))
-    #parser.add_argument(
-    #    '--fetch', action='store_true',
-    #     help='Fetch latest commits specified repos, even if some exists in cache')
-    # parser.add_argument(
-    #     '--output', type=Path, default=None,
-    #     help="Output file to write to, if not specified output will be drawn instead")
-    # parser.add_argument('repositories', nargs='+', type=Slug.from_string)
-
-    # args = parser.parse_args()
-
-    # # create config from arguments
-    # config = Config()
-    # config_file = args.config
-    # with config_file.open() as f:
-    #     update_from_dict(config, json.load(f))
-    # update_from_args(config, args)
+        output, mailmap,
+        repositories):
 
     storage = SQLiteStorage(str(Path('commmits.db')))
     fetcher = Cloning()
 
-    # storage = Mailmap(config.mailmap, storage)
+    if mailmap:
+        storage = Mailmap(mailmap, storage)
     
     #for slug in repositories:
     #    for commit in fetcher.commits(slug):
