@@ -52,7 +52,7 @@ class SQLiteStorage(Storage):
             '''CREATE TABLE IF NOT EXISTS commits (owner TEXT, repository TEXT, sha TEXT, timestamp DATETIME, committer TEXT, files TEXT)''')
         # sha index
         cursor.execute(
-            '''CREATE UNIQUE INDEX IF NOT EXISTS sha_index ON commits (sha)''')
+            '''CREATE UNIQUE INDEX IF NOT EXISTS sha_index ON commits (owner, repository, sha)''')
         # timestamp index
         cursor.execute(
             '''CREATE INDEX IF NOT EXISTS timestamp_index ON commits (timestamp)''')

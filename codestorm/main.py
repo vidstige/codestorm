@@ -9,12 +9,13 @@ from typing import BinaryIO, Dict, Iterable, Optional
 
 import click
 import click_config_file
+from github import Github
 import numpy as np
 
-from codestorm.fetch import GithubAPI, Cloning, Slug
+from codestorm.fetch import Fetcher, Cloning, Slug
 from codestorm.ffmpeg import FFmpeg, Resolution, Raw, VideoFormat, H264
 from codestorm.mailmap import Mailmap
-from codestorm.storage import DirectoryStorage, SQLiteStorage, Commit
+from codestorm.storage import Commit, DirectoryStorage, SQLiteStorage, Storage
 from codestorm.renderer import Color, RenderProperties, Renderer
 from codestorm.simulation import Simulation
 
@@ -115,39 +116,6 @@ class Config:
         #    self._properties_cache[color] = properties
         #return properties
         return self.file_properties
-
-
-def parse_value(key, value):
-    if key == "color":
-        return Color.parse(value).color
-    return value
-
-
-def parse(keys: Dict):
-    """Parses colors and more"""
-    return  {key: parse_value(key, value) for key, value in keys.items()}
-
-
-def update_from_dict(config: Config, keys: Dict):
-    config.seed = keys.get('seed', config.seed)
-    config.author_properties = RenderProperties(**parse(keys.get('author')))
-    config.foreground = parse(keys.get('foreground')).get('color', Color.WHITE)
-    config.background = parse(keys.get('background')).get('color', Color.BLACK)
-    config.output = keys.get('output')
-    config.mailmap = keys.get('mailmap')
-
-    config.resolution = Resolution.parse(keys.get('resolution', "640x480"))
-    config.video_format = keys.get('video_format')
-    config.framerate = keys.get('framerate', 30)
-
-    for filetype in keys.get('filetypes', []):
-        for extension in filetype['extensions']:
-            config.file_types[extension] = Color.parse(filetype['color']).color
-
-
-def update_from_args(config: Config, args):
-    if args.output:
-        config.output = args.output
 
 
 import os
@@ -336,6 +304,13 @@ def render(
         codestorm(commits, config, session.buffer)
 
 
+def _fetch_from(fetcher: Fetcher, storage: Storage, slug: Slug) -> None:
+    print(slug)
+    for commit in fetcher.commits(slug):
+        print(commit.sha)
+        storage.store(commit)
+
+
 @cli.command()
 @click.argument('repositories', type=Slug.from_string, nargs=-1)
 @click_config_file.configuration_option(exists=True, cmd_name='codestorm')
@@ -352,10 +327,18 @@ def fetch(ctx, repositories: Iterable[Slug]):
         storage = Mailmap(mailmap, storage)
     
     for slug in repositories:
-        for commit in fetcher.commits(slug):
-            print(commit.sha)
-            storage.store(commit)
+        if slug.repository == "*":
+            with open('.token') as f:
+                token = f.read().strip()
 
+            g = Github(token)
+            owner = g.get_organization(slug.owner)
+            for repository in owner.get_repos():
+                _fetch_from(fetcher, storage, Slug(slug.owner, repository.name))
+        else:
+            _fetch_from(fetcher, storage, slug)
+
+        
     #
     #commits = storage.commits()
     #everything = []

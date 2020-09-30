@@ -10,27 +10,29 @@ from codestorm.commit import Commit, File, NamedUser, Slug
 
 
 class Fetcher:
-    def commits(self, slug: Slug):
+    def commits(self, slug: Slug, since: Optional[str]=None):
         return []
 
 
 class GithubAPI(Fetcher):
     @staticmethod
-    def to_commit(commit) -> Commit:
+    def to_commit(slug: Slug, commit) -> Commit:
         return Commit(
+            slug,
             commit.sha,
             commit.last_modified,
             committer=NamedUser(commit.committer.login),
             files=[File(f.filename, f.additions, f.changes, f.deletions) for f in commit.files])
 
-    def commits(self, slug: Slug):
+    def commits(self, slug: Slug,since: Optional[str]=None):
+        del since
         with open('.token') as f:
             token = f.read().strip()
 
         g = Github(token)
 
         repo = g.get_repo(slug)
-        return (GithubAPI.to_commit(c) for c in repo.get_commits())
+        return (GithubAPI.to_commit(slug, c) for c in repo.get_commits())
 
 
 class Cloning(Fetcher):
@@ -44,13 +46,12 @@ class Cloning(Fetcher):
             return None
         return int(s)
 
-    def commits(self, slug: Slug) -> Iterable[Commit]:
+    def commits(self, slug: Slug, since: Optional[str]=None) -> Iterable[Commit]:
         git_directory = self.path / '{}.git'.format(slug.repository)
         if git_directory.exists():
             ## update
-            #command = ['git', 'pull', 'origin', 'master']
-            #subprocess.check_call(command, cwd=path)
-            pass
+            command = ['git', 'fetch']
+            subprocess.check_call(command, cwd=git_directory)
         else:
             # clone
             command = [
@@ -61,8 +62,10 @@ class Cloning(Fetcher):
             subprocess.check_call(command, cwd=self.path)
 
         # fetch commits
+        command = ['git', 'log', '--reverse', '--no-merges', '--date=unix', '--pretty=========%n%H,%aE,%cd', '--numstat']
+        if since:
+            command += ['{}..HEAD'.format(since)]
 
-        command = ['git', 'log', '--no-merges', '--date=unix', '--pretty=========%n%H,%aE,%cd', '--numstat']
         process = subprocess.Popen(
             command, cwd=git_directory, stdout=subprocess.PIPE,
             env=dict(TZ='UTC'))
