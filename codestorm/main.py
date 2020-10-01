@@ -289,9 +289,7 @@ def render(
 
     cache = ctx.parent.params['cache']
     storage = SQLiteStorage(cache / 'codestorm.db')
-    mailmap = ctx.parent.params['mailmap']
-    if mailmap:
-        storage = Mailmap(mailmap, storage)
+    storage.mailmap = Mailmap.load(ctx.parent.params['mailmap'])
 
     commits = storage.commits()
     config = Config(
@@ -319,13 +317,10 @@ def fetch(ctx, repositories: Iterable[Slug]):
     cache = ctx.parent.params['cache']
     cache.mkdir(exist_ok=True)
     storage = SQLiteStorage(cache / 'codestorm.db')
+    storage.mailmap = Mailmap.load(ctx.parent.params['mailmap'])
 
     fetcher = Cloning(cache / 'repositories')
 
-    mailmap = ctx.parent.params['mailmap']
-    if mailmap:
-        storage = Mailmap(mailmap, storage)
-    
     for slug in repositories:
         if slug.repository == "*":
             with open('.token') as f:
@@ -364,10 +359,7 @@ def list(ctx, what, conditions):
     cache = ctx.parent.params['cache']
     cache.mkdir(exist_ok=True)
     storage = SQLiteStorage(cache / 'codestorm.db')
-
-    mailmap = ctx.parent.params['mailmap']
-    if mailmap:
-        storage = Mailmap(mailmap, storage)
+    storage.mailmap = Mailmap.load(ctx.parent.params['mailmap'])
     
     if what == 'commits':
         query = dict(conditions)
@@ -387,10 +379,7 @@ def delete(ctx, repositories: Iterable[Slug]):
     cache = ctx.parent.params['cache']
     cache.mkdir(exist_ok=True)
     storage = SQLiteStorage(cache / 'codestorm.db')
-
-    mailmap = ctx.parent.params['mailmap']
-    if mailmap:
-        storage = Mailmap(mailmap, storage)
+    storage.mailmap = Mailmap.load(ctx.parent.params['mailmap'])
     
     for slug in repositories:
         print(slug)
