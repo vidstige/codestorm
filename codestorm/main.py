@@ -5,7 +5,7 @@ import json
 import os
 from pathlib import Path
 import sys
-from typing import BinaryIO, Dict, Iterable, Optional
+from typing import BinaryIO, Dict, Iterable, Optional, Tuple
 
 import click
 import click_config_file
@@ -288,7 +288,7 @@ def render(
         output: Optional[Path], repositories: Iterable[Slug]):
 
     cache = ctx.parent.params['cache']
-    storage = SQLiteStorage(cache / 'commmits.db')
+    storage = SQLiteStorage(cache / 'codestorm.db')
     mailmap = ctx.parent.params['mailmap']
     if mailmap:
         storage = Mailmap(mailmap, storage)
@@ -318,7 +318,7 @@ def _fetch_from(fetcher: Fetcher, storage: Storage, slug: Slug) -> None:
 def fetch(ctx, repositories: Iterable[Slug]):
     cache = ctx.parent.params['cache']
     cache.mkdir(exist_ok=True)
-    storage = SQLiteStorage(cache / 'commmits.db')
+    storage = SQLiteStorage(cache / 'codestorm.db')
 
     fetcher = Cloning(cache / 'repositories')
 
@@ -349,6 +349,52 @@ def fetch(ctx, repositories: Iterable[Slug]):
     #for value, count in Counter(everything).most_common():
     #    print("{value}: {count}".format(value=value, count=count))
     #import itertools; itertools.islice(commits, 1000, 5000)
+
+
+def condition(s) -> Tuple[str, str]:
+    return s.split('=', 2)
+
+
+@cli.command()
+@click.argument('what', type=str, default='commits')
+@click.argument('conditions', type=condition, nargs=-1)
+@click_config_file.configuration_option(exists=True, cmd_name='codestorm')
+@click.pass_context
+def list(ctx, what, conditions):
+    cache = ctx.parent.params['cache']
+    cache.mkdir(exist_ok=True)
+    storage = SQLiteStorage(cache / 'codestorm.db')
+
+    mailmap = ctx.parent.params['mailmap']
+    if mailmap:
+        storage = Mailmap(mailmap, storage)
+    
+    if what == 'commits':
+        query = dict(conditions)
+        for commit in storage.commits(query):
+            print(commit.sha, commit.slug, commit.committer)
+
+    if what == 'users':
+        for user in storage.users():
+            print(user)
+
+
+@cli.command()
+@click.argument('repositories', type=Slug.from_string, nargs=-1)
+@click_config_file.configuration_option(exists=True, cmd_name='codestorm')
+@click.pass_context
+def delete(ctx, repositories: Iterable[Slug]):
+    cache = ctx.parent.params['cache']
+    cache.mkdir(exist_ok=True)
+    storage = SQLiteStorage(cache / 'codestorm.db')
+
+    mailmap = ctx.parent.params['mailmap']
+    if mailmap:
+        storage = Mailmap(mailmap, storage)
+    
+    for slug in repositories:
+        print(slug)
+        storage.delete(slug)
 
 
 if __name__ == "__main__":

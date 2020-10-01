@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import pickle
-from typing import Iterable
+from typing import Dict, Iterable, Optional
 
 from codestorm.commit import NamedUser, File, Commit, last_modified, Slug
 
@@ -11,7 +11,10 @@ class Storage:
     def commits(self) -> Iterable[Commit]:
         return []
 
-    def store(self, commit: Commit) -> None:
+    def store(self, commit: Commit, query: Dict[str, str]) -> None:
+        pass
+
+    def delete(self, slug: Slug) -> None:
         pass
 
 
@@ -19,7 +22,7 @@ import sqlite3
 
 
 def serialize_files(files):
-    return '|'.join('{}:{}:{}:{}'.format(f.filename, f.additions, f.changes, f.deletions) for f in files)
+    return "\\0".join('{}:{}:{}:{}'.format(f.filename, f.additions, f.changes, f.deletions) for f in files)
 
 
 def parse_size(size: str) -> int:
@@ -29,14 +32,18 @@ def parse_size(size: str) -> int:
 
 
 def deserialize_file(raw):
-    filename, additions, changes, deletions = raw.rsplit(':', 3)
-    return File(filename, parse_size(additions), parse_size(changes), parse_size(deletions))
+    try:
+        filename, additions, changes, deletions = raw.rsplit(':', 3)
+        return File(filename, parse_size(additions), parse_size(changes), parse_size(deletions))
+    except ValueError:
+        print(raw)
+        raise
 
 
 def deserialize_files(raw):
     if not raw:
         return []
-    files = raw.split('|')
+    files = raw.split("\\0")
     return [deserialize_file(f) for f in files]
 
 
@@ -77,19 +84,36 @@ class SQLiteStorage(Storage):
         ))
         self.connection.commit()
 
-    def commits(self) -> Iterable[Commit]:
+    def commits(self, query: Optional[Dict[str, str]]={}) -> Iterable[Commit]:
         cursor = self.connection.cursor()
-        rows = cursor.execute('SELECT owner, repository, sha, timestamp, committer, files FROM commits ORDER BY timestamp')
+        where = ' AND '.join('{}="{}"'.format(k ,v) for k, v in query.items())
+        rows = cursor.execute('SELECT owner, repository, sha, timestamp, committer, files FROM commits {where}ORDER BY timestamp'.format(where=where))
         for row in rows:
-            owner, repository, sha, timestamp, comitter_login, files_raw = row
-            commit = Commit(
-                slug=Slug(owner, repository),
-                last_modified=timestamp,
-                sha=sha,
-                committer=NamedUser(login=comitter_login),
-                files=deserialize_files(files_raw))
-            if commit.last_modified:
-                yield commit
+            try:
+                owner, repository, sha, timestamp, comitter_login, files_raw = row
+                commit = Commit(
+                    slug=Slug(owner, repository),
+                    last_modified=timestamp,
+                    sha=sha,
+                    committer=NamedUser(login=comitter_login),
+                    files=deserialize_files(files_raw))
+                if commit.last_modified:
+                    yield commit
+            except ValueError:
+                print(sha, repository)
+                raise
+    
+    def delete(self, slug: Slug) -> None:
+        cursor = self.connection.cursor()
+        cursor.execute('DELETE FROM commits WHERE owner="{owner}" AND repository="{repository}"'.format(owner=slug.owner, repository=slug.repository))
+        self.connection.commit()
+    
+    def users(self) -> Iterable[NamedUser]:
+        cursor = self.connection.cursor()
+        rows = cursor.execute('SELECT DISTINCT committer FROM commits')
+        for row in rows:
+            comitter_login, = row
+            yield NamedUser(login=comitter_login)
 
 
 class DirectoryStorage(Storage):

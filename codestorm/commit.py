@@ -11,6 +11,9 @@ class Slug:
             owner=self.owner,
             repository=self.repository)
 
+    def __repr__(self) -> str:
+        return 'Slug({}, {})'.format(self.owner, self.repository)
+
     @staticmethod
     def from_string(s: str):
         parts = s.split('/')
