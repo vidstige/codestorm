@@ -76,7 +76,7 @@ class Renderer:
         
         mx, my = w // 2, h // 2
         scale = min(w, h)
-        positions = self.simulation.positions
+        positions = self.simulation.positions()
         items = [(identifier, self.properties.get(identifier, self.default_properties), positions[index]) for identifier, index in self.simulation.bodies.items()]
 
         for identifier, properties, (x, y) in sorted(items, key=lambda item: item[1].z, reverse=True):
