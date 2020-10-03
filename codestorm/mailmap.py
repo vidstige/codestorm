@@ -14,10 +14,10 @@ class Mailmap:
         if not path:
             return Mailmap(mailmap)
 
-        with open(mailmap) as f:
-            mailmap = json.load(f)
+        with open(path) as f:
+            inverse_map = json.load(f)
 
-        for email, aliases in mailmap.items():
+        for email, aliases in inverse_map.items():
             for alias in aliases:
                 mailmap[alias] = email
 

@@ -3,6 +3,7 @@ from pathlib import Path
 import pickle
 from typing import Dict, Iterable, Optional
 
+from codestorm.mailmap import Mailmap
 from codestorm.commit import NamedUser, File, Commit, last_modified, Slug
 
 
@@ -51,6 +52,7 @@ class SQLiteStorage(Storage):
     def __init__(self, path: Path):
         self.connection = sqlite3.connect(str(path))
         self._create_tables()
+        self.mailmap = Mailmap({})
     
     def _create_tables(self):
         cursor = self.connection.cursor()
@@ -86,7 +88,9 @@ class SQLiteStorage(Storage):
 
     def commits(self, query: Optional[Dict[str, str]]={}) -> Iterable[Commit]:
         cursor = self.connection.cursor()
-        where = ' AND '.join('{}="{}"'.format(k ,v) for k, v in query.items())
+        where = ''
+        if query:
+            where = "WHERE {}".format(' AND '.join('{}="{}"'.format(k ,v) for k, v in query.items()))
         rows = cursor.execute('SELECT owner, repository, sha, timestamp, committer, files FROM commits {where}ORDER BY timestamp'.format(where=where))
         for row in rows:
             try:
@@ -95,7 +99,7 @@ class SQLiteStorage(Storage):
                     slug=Slug(owner, repository),
                     last_modified=timestamp,
                     sha=sha,
-                    committer=NamedUser(login=comitter_login),
+                    committer=NamedUser(login=self.mailmap.lookup(comitter_login)),
                     files=deserialize_files(files_raw))
                 if commit.last_modified:
                     yield commit
@@ -111,9 +115,11 @@ class SQLiteStorage(Storage):
     def users(self) -> Iterable[NamedUser]:
         cursor = self.connection.cursor()
         rows = cursor.execute('SELECT DISTINCT committer FROM commits')
+        users = set()
         for row in rows:
             comitter_login, = row
-            yield NamedUser(login=comitter_login)
+            users.add(self.mailmap.lookup(comitter_login))
+        return sorted(users)
 
 
 class DirectoryStorage(Storage):
