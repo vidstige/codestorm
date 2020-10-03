@@ -14,6 +14,15 @@ class Slug:
     def __repr__(self) -> str:
         return 'Slug({}, {})'.format(self.owner, self.repository)
 
+    def _key(self):
+        return self.owner, self.repository
+
+    def __hash__(self) -> int:
+        return hash(self._key())
+    
+    def __eq__(self, other) -> bool:
+        return self._key() == other._key()
+
     @staticmethod
     def from_string(s: str):
         parts = s.split('/')

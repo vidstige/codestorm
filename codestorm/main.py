@@ -93,6 +93,13 @@ def from_intensity(original: RenderProperties, intensity: Intensity) -> RenderPr
     return properties
 
 
+COLORSTR = [
+    "#ffb900", "#ff8c00", "#f7630c", "#ca5010", "#da3b01", "#ef6950", "#d13438", "#ff4343",
+    "#e74856", "#e81123", "#ea005e", "#c30052", "#e3008c", "#bf0077", "#c239b3", "#9a0089",
+    "#0078d7", "#0063b1", "#8e8cd8", "#6b69d6", "#8764b8", "#744da9", "#b146c2", "#881798",
+    "#0099bc", "#2d7d9a", "#00b7c3", "#038387", "#00b294", "#018574", "#00cc6a", "#10893e"]
+COLORS = [Color.parse(s) for s in COLORSTR]
+
 class Config:
     def __init__(
             self, seed: int, resolution: Resolution, foreground: Color, background: Color):
@@ -100,22 +107,19 @@ class Config:
         self.resolution = resolution
         self.foreground = foreground
         self.background = background
-        self.author_properties = RenderProperties(
-            color=Color.parse("#47a276"), radius=2, z=-1
-        )
-        self.file_properties = RenderProperties(
-            color=Color.parse("#9c74c2"), radius=2,
-        )
+        self.author_properties = RenderProperties(color=foreground, radius=2, z=-1)
+        #self.file_properties = RenderProperties(color=Color.parse("#9c74c2"), radius=2)
+        self._properties_cache = {}  # type: Dict[Slug, RenderProperties]
 
-
-    def render_properties_for(self, filename: str):
+    def render_properties_for(self, filename: str, slug: Slug):
         #color = self.file_types.get(Path(filename).suffix, self.file_types[None])
-        #properties = self._properties_cache.get(color)
-        #if not properties:
-        #    properties = RenderProperties(color, radius=4)
-        #    self._properties_cache[color] = properties
-        #return properties
-        return self.file_properties
+        properties = self._properties_cache.get(slug)
+        if not properties:
+            print(slug, hash(slug), file=sys.stderr)
+            color = np.random.choice(COLORS)
+            properties = RenderProperties(color, radius=3)
+            self._properties_cache[slug] = properties
+        return properties
 
 
 import os
@@ -181,9 +185,9 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
                 i = intensity_at(t - timestamp, intensity, author_duration)
                 renderer.properties[author] = from_intensity(config.author_properties, i)
 
-            for filename, (timestamp, intensity) in files.items():
+            for filename, (timestamp, intensity, slug) in files.items():
                 i = intensity_at(t - timestamp, intensity, file_duration)
-                render_properties = config.render_properties_for(filename)
+                render_properties = config.render_properties_for(filename, slug)
                 renderer.properties[filename] = from_intensity(render_properties, i)
             
             renderer.render()
@@ -191,7 +195,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
             # Add body for author (if needed) and update timestamp
             author = commit.committer.login
             if author not in simulation.bodies:
-                simulation.add_body(np.random.rand(1, 2) - 0.5, author, mass=10)
+                simulation.add_body(np.random.rand(1, 2) - 0.5, np.zeros((1, 2)), author, mass=10)
 
                 # add springs between all other authors
                 #for peer in authors:
@@ -208,18 +212,18 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
             for phile in commit.files or tuple():
                 filename = os.path.basename(phile.filename)
                 if filename not in simulation.bodies:
-                    simulation.add_body(np.random.rand(1, 2) - 0.5, filename, mass=1)
+                    simulation.add_body(np.random.rand(1, 2) - 0.5, np.zeros((1, 2)), filename, mass=1)
 
-                pt, pi = files.get(filename, (simulation.get_time(), 0))
+                pt, pi, ps = files.get(filename, (simulation.get_time(), 0, commit.slug))
                 spillover = intensity_at(age=simulation.get_time() - pt, intensity=pi, duration=author_duration)
                 intensity = spillover + phile.additions + phile.changes + phile.deletions
-                files[filename] = simulation.get_time(), intensity
+                files[filename] = simulation.get_time(), intensity, ps
 
                 # add spring force
                 # spring id
                 sid = '{author}-{filename}'.format(author=author, filename=filename)
                 # add spring forces or update timestamps
-                simulation.add_spring(sid, author, filename, 0.2, 0.02)
+                simulation.add_spring(sid, author, filename, 0.2, 0.0002)
                       
             # remove old spring forces
             to_remove = [spring_id for spring_id, age in simulation.iter_springs() if age > spring_duration]
@@ -227,7 +231,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
                 simulation.remove_spring(spring_id)
 
             t = simulation.get_time()
-            to_remove = [f for f, (timestamp, _) in files.items() if t - timestamp > file_duration]
+            to_remove = [f for f, (timestamp, _, _) in files.items() if t - timestamp > file_duration]
             for f in to_remove:
                 simulation.remove_body(f)
                 del files[f]
@@ -329,7 +333,8 @@ def fetch(ctx, repositories: Iterable[Slug]):
             g = Github(token)
             owner = g.get_organization(slug.owner)
             for repository in owner.get_repos():
-                _fetch_from(fetcher, storage, Slug(slug.owner, repository.name))
+                if not repository.fork:
+                    _fetch_from(fetcher, storage, Slug(slug.owner, repository.name))
         else:
             _fetch_from(fetcher, storage, slug)
 
@@ -363,6 +368,7 @@ def list(ctx, what, conditions):
     
     if what == 'commits':
         query = dict(conditions)
+        print(query)
         for commit in storage.commits(query):
             print(commit.sha, commit.slug, commit.committer)
 
