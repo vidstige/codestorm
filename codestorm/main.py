@@ -127,6 +127,7 @@ class Config:
 
 import os
 
+
 def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
     # the duration a force is active
     spring_duration = timedelta(weeks=52)
@@ -141,6 +142,12 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
 
     def slak(stiffness, age):
         return stiffness
+    
+    aspect = config.resolution.aspect()
+    def random_position():
+        if aspect < 1:
+            return (np.random.rand(1, 2) - 0.5) * np.array([1, 1  / aspect])
+        return (np.random.rand(1, 2) - 0.5) * np.array([aspect, 1])
 
     np.random.seed(config.seed)
 
@@ -203,7 +210,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
             # Add body for author (if needed) and update timestamp
             author = commit.committer.login
             if author not in simulation.bodies:
-                simulation.add_body(np.random.rand(1, 2) - 0.5, np.zeros((1, 2)), author, mass=15)
+                simulation.add_body(random_position(), np.zeros((1, 2)), author, mass=20)
 
                 # add springs between all other authors
                 #for peer in authors:
@@ -220,7 +227,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
             for phile in commit.files or tuple():
                 filename = os.path.basename(phile.filename)
                 if filename not in simulation.bodies:
-                    simulation.add_body(np.random.rand(1, 2) - 0.5, np.zeros((1, 2)), filename, mass=1)
+                    simulation.add_body(random_position(), np.zeros((1, 2)), filename, mass=1)
 
                 pt, pi, ps = files.get(filename, (simulation.get_time(), 0, commit.slug))
                 spillover = intensity_at(age=simulation.get_time() - pt, intensity=pi, duration=author_duration)
@@ -231,7 +238,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
                 # spring id
                 sid = '{author}-{filename}'.format(author=author, filename=filename)
                 # add spring forces or update timestamps
-                simulation.add_spring(sid, author, filename, np.random.normal(0.2, 0.01), 0.01)
+                simulation.add_spring(sid, author, filename, np.random.normal(0.2, 0.01), 0.005)
                       
             # remove old spring forces
             to_remove = [spring_id for spring_id, age in simulation.iter_springs() if age > spring_duration]

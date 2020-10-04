@@ -17,6 +17,9 @@ class Resolution:
 
     def pair(self) -> Tuple[int, int]:
         return self.width, self.height
+    
+    def aspect(self) -> float:
+        return self.width / self.height
 
     def __str__(self) -> str:
         return '{}x{}'.format(self.width, self.height)
