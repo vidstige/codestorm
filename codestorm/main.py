@@ -131,20 +131,21 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
     # the duration a force is active
     spring_duration = timedelta(weeks=52)
     file_duration = timedelta(weeks=28)
-    author_duration = timedelta(weeks=11)
+    author_duration = timedelta(weeks=14)
 
     def stiffness(stiffness, age):
         # normalized time (0..1)
         nt = np.clip(age / spring_duration.total_seconds(), 0, 1)
         #return stiffness * sin_inout(nt)
         return stiffness * exp_out(nt)
+
     def slak(stiffness, age):
         return stiffness
 
     np.random.seed(config.seed)
 
     simulation = TickSimulation(timedelta(days=1), stiffness=slak)
-    simulation.drag = 0.08
+    simulation.drag = 0.09
 
     # maps identifiers to timestamps, intensity tuples
     files = {}
@@ -202,7 +203,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
             # Add body for author (if needed) and update timestamp
             author = commit.committer.login
             if author not in simulation.bodies:
-                simulation.add_body(np.random.rand(1, 2) - 0.5, np.zeros((1, 2)), author, mass=10)
+                simulation.add_body(np.random.rand(1, 2) - 0.5, np.zeros((1, 2)), author, mass=15)
 
                 # add springs between all other authors
                 #for peer in authors:
@@ -230,7 +231,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
                 # spring id
                 sid = '{author}-{filename}'.format(author=author, filename=filename)
                 # add spring forces or update timestamps
-                simulation.add_spring(sid, author, filename, 0.2, 0.008)
+                simulation.add_spring(sid, author, filename, np.random.normal(0.2, 0.01), 0.01)
                       
             # remove old spring forces
             to_remove = [spring_id for spring_id, age in simulation.iter_springs() if age > spring_duration]
