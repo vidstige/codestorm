@@ -22,6 +22,7 @@ class Simulation:
         self.masses = np.empty((0,))
         self.springs = {}
         self.stiffness = stiffness
+        self.drag = 0
 
     def set_time(self, t):
         self.t = t
@@ -93,16 +94,17 @@ class Simulation:
 
         # compute spring force magnitudes
         age = self.t - np.array(tt)
-        forces = (norms - ll) * self.stiffness(np.array(ss), age)
+        force_magnitudes = (norms - ll) * self.stiffness(np.array(ss), age)
 
-        # compute accelerations and accumulate
-        mi = self.masses[ii]
-        mj = self.masses[jj]
-        a = np.zeros(positions.shape)
-        a[ii] += (di / norms[:, None]) * forces[:, None] / mi[:, None]
-        a[jj] += (dj / norms[:, None]) * forces[:, None] / mj[:, None]
+        forces = np.zeros(positions.shape)
+        forces[ii] += (di / norms[:, None]) * force_magnitudes[:, None]
+        forces[jj] += (dj / norms[:, None]) * force_magnitudes[:, None]
 
-        return np.hstack((velocities, a))
+        # add drag forces
+        forces += -self.drag * velocities
+
+        # compute acceleration
+        return np.hstack((velocities, forces / self.masses[:, None]))
 
     def positions(self):
         positions, _ = np.hsplit(self.state, 2)

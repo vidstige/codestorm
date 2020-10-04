@@ -74,6 +74,9 @@ def steady(start: datetime, timestep: timedelta) -> Iterable[datetime]:
 def sin_inout(nt):
     return (np.cos(np.pi * nt) + 1) / 2
 
+def exp_out(nt):
+    return -2**(-10 * nt) + 1
+
 
 Intensity = float
 
@@ -133,11 +136,15 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
     def stiffness(stiffness, age):
         # normalized time (0..1)
         nt = np.clip(age / spring_duration.total_seconds(), 0, 1)
-        return stiffness * sin_inout(nt)
+        #return stiffness * sin_inout(nt)
+        return stiffness * exp_out(nt)
+    def slak(stiffness, age):
+        return stiffness
 
     np.random.seed(config.seed)
 
-    simulation = TickSimulation(timedelta(days=1), stiffness=stiffness)
+    simulation = TickSimulation(timedelta(days=1), stiffness=slak)
+    simulation.drag = 0.08
 
     # maps identifiers to timestamps, intensity tuples
     files = {}
@@ -223,7 +230,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
                 # spring id
                 sid = '{author}-{filename}'.format(author=author, filename=filename)
                 # add spring forces or update timestamps
-                simulation.add_spring(sid, author, filename, 0.2, 0.0002)
+                simulation.add_spring(sid, author, filename, 0.2, 0.008)
                       
             # remove old spring forces
             to_remove = [spring_id for spring_id, age in simulation.iter_springs() if age > spring_duration]
@@ -302,7 +309,7 @@ def render(
         foreground=foreground,
         background=background
     )
-    with _make_session(resolution, output) as session:
+    with _make_session(resolution, Path(output) if output else output) as session:
         codestorm(commits, config, session.buffer)
 
 
