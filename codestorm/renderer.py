@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Sequence, Tuple
 
 import cairo
 import numpy as np
@@ -53,6 +53,47 @@ class RenderProperties:
         self.pattern = RenderProperties.radial_pattern(color)
         
 
+class Rectangle:
+    def __init__(self, x, y, w, h):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+
+    def __str__(self) -> str:
+        return "{}, {}, {}, {}".format(self.x, self.y, self.w, self.h)
+
+    def left(self) -> float:
+        return self.x
+    
+    def right(self) -> float:
+        return self.x + self.w
+
+    def top(self) -> float:
+        return self.y
+
+    def bottom(self) -> float:
+        return self.y + self.h
+    
+    def overlaps(self, other) -> bool:
+        return self.left() < other.right() and self.right() > other.left() and self.top() < other.bottom() and self.bottom() > other.top()
+
+
+def mid_y(label: Tuple[str, Rectangle]) -> float:
+    _, r = label
+    return r.y + r.h / 2
+
+def layout(rectangles: Sequence[Tuple[str, Rectangle]]) -> Sequence[Tuple[str, Rectangle]]:
+    # Find overlapping rectangles
+    for _, a in sorted(rectangles, key=mid_y):
+        for _, b in rectangles:
+            if a != b and a.overlaps(b):
+                diff = a.bottom() - b.top()
+                a.y -= diff / 2                
+                b.y += diff / 2
+    return rectangles
+
+
 class Renderer:
     default_properties = RenderProperties(Color(0.42, 0.22, 1), 3)
     
@@ -79,6 +120,7 @@ class Renderer:
         positions = self.simulation.positions()
         items = [(identifier, self.properties.get(identifier, self.default_properties), positions[index]) for identifier, index in self.simulation.bodies.items()]
 
+        labels = []
         for identifier, properties, (x, y) in sorted(items, key=lambda item: item[1].z, reverse=True):
             ctx.save()
             ctx.translate(mx + x * scale, my + y * scale)
@@ -88,15 +130,18 @@ class Renderer:
             ctx.set_source(properties.pattern)
             ctx.mask(properties.pattern)
             ctx.restore()
-
+        
             if identifier in self.labels:
                 label = identifier
                 extents = ctx.text_extents(label)
-                ctx.move_to(mx + x * scale - extents.x_bearing - (extents.width / 2) + properties.radius, my + y * scale + extents.height + properties.radius)
-                ctx.set_source_rgb(self.fg.r, self.fg.g, self.fg.b)
-                ctx.show_text(label)
-                
-        
+                rectangle = Rectangle(mx + x * scale - extents.x_bearing - (extents.width / 2) + properties.radius, my + y * scale + extents.height + properties.radius, extents.width, extents.height)
+                labels.append((label, rectangle))
+
+        ctx.set_source_rgb(self.fg.r, self.fg.g, self.fg.b)
+        for label, rectangle in layout(labels):
+            ctx.move_to(rectangle.x, rectangle.y)
+            ctx.show_text(label)
+
         # overlay
         ctx.set_source_rgb(self.fg.r, self.fg.g, self.fg.b)
         ctx.move_to(8, 24)
