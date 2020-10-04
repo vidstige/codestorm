@@ -92,6 +92,7 @@ def size(commit: Commit) -> float:
 def from_intensity(original: RenderProperties, intensity: Intensity) -> RenderProperties:
     """Compute render properties from original + intensity"""
     properties = copy(original)
+    #properties.radius = np.clip(original.radius * np.log(intensity), 1, 128)
     properties.radius = np.clip(original.radius * np.log(intensity), 1, 128)
     return properties
 
@@ -110,17 +111,16 @@ class Config:
         self.resolution = resolution
         self.foreground = foreground
         self.background = background
-        self.author_properties = RenderProperties(color=foreground, radius=2, z=-1)
+        self.author_properties = RenderProperties(color=foreground, radius=3, z=-1)
         #self.file_properties = RenderProperties(color=Color.parse("#9c74c2"), radius=2)
         self._properties_cache = {}  # type: Dict[Slug, RenderProperties]
-
+    
     def render_properties_for(self, filename: str, slug: Slug):
-        #color = self.file_types.get(Path(filename).suffix, self.file_types[None])
+        del filename
         properties = self._properties_cache.get(slug)
         if not properties:
-            print(slug, hash(slug), file=sys.stderr)
             color = np.random.choice(COLORS)
-            properties = RenderProperties(color, radius=3)
+            properties = RenderProperties(color, radius=5)
             self._properties_cache[slug] = properties
         return properties
 
@@ -157,6 +157,10 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
     # maps identifiers to timestamps, intensity tuples
     files = {}
     authors = {}
+    def legend():
+        slugs = set(str(slug) for _, _, slug in files.values())
+        for slug in sorted(slugs):
+            yield config.render_properties_for('', slug).color, slug
 
     labels = authors
 
@@ -166,7 +170,8 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
         labels,
         config.resolution.pair(),
         bg=config.background,
-        fg=config.foreground)
+        fg=config.foreground,
+        legend=legend)
 
 
     # find start time

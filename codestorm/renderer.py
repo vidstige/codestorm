@@ -40,10 +40,10 @@ class RenderProperties:
     @staticmethod
     def radial_pattern(color: Color) -> cairo.RadialGradient:
         pattern = cairo.RadialGradient(
-            0.5, 0.5, 0,
+            0.5, 0.5, 0.05,
             0.5, 0.5, 0.25)
         r, g, b = color.r, color.g, color.b
-        pattern.add_color_stop_rgba(0, r, g, b, 0.75)
+        pattern.add_color_stop_rgba(0, r, g, b, 0.5)
         pattern.add_color_stop_rgba(1, r, g, b, 0)
         return pattern
 
@@ -51,6 +51,7 @@ class RenderProperties:
         self.radius = radius
         self.z = z
         self.pattern = RenderProperties.radial_pattern(color)
+        self.color = color
         
 
 class Rectangle:
@@ -97,7 +98,7 @@ def layout(rectangles: Sequence[Tuple[str, Rectangle]]) -> Sequence[Tuple[str, R
 class Renderer:
     default_properties = RenderProperties(Color(0.42, 0.22, 1), 3)
     
-    def __init__(self, output, simulation, labels, resolution, fg=Color(1, 1, 1), bg=Color(0, 0, 0)):
+    def __init__(self, output, simulation, labels, resolution, fg=Color(1, 1, 1), bg=Color(0, 0, 0), legend=None):
         self.output = output
         self.simulation = simulation
         self.labels = labels
@@ -105,6 +106,7 @@ class Renderer:
         self.surface = cairo.ImageSurface(cairo.Format.RGB24, width, height)
         self.fg = fg
         self.bg = bg
+        self.legend = legend
         self.properties = {}
     
     def render(self):
@@ -147,5 +149,16 @@ class Renderer:
         ctx.move_to(8, 24)
         ctx.set_font_size(16)
         ctx.show_text(self.simulation.get_time().date().isoformat())
+
+        # legend
+        y = 48
+        for color, label in self.legend():
+            ctx.set_source_rgb(color.r, color.g, color.b)
+            ctx.arc(16, y - 5, 6, 0, TAU)
+            ctx.fill()
+            ctx.move_to(24, y)
+            ctx.set_source_rgb(self.fg.r, self.fg.g, self.fg.b)
+            ctx.show_text(label)
+            y += 16
 
         self.output.write(surface.get_data())
