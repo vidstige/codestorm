@@ -5,7 +5,7 @@ import json
 import os
 from pathlib import Path
 import sys
-from typing import BinaryIO, Dict, Iterable, Optional, Tuple
+from typing import Any, BinaryIO, Dict, Iterable, Optional, Tuple
 
 import click
 import click_config_file
@@ -106,7 +106,7 @@ COLORS = [Color.parse(s) for s in COLORSTR]
 
 class Config:
     def __init__(
-            self, seed: int, resolution: Resolution, foreground: Color, background: Color):
+            self, seed: int, resolution: Resolution, foreground: Optional[Color], background: Optional[Color]):
         self.seed = seed
         self.resolution = resolution
         self.foreground = foreground
@@ -138,7 +138,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
         # normalized time (0..1)
         nt = np.clip(age / spring_duration.total_seconds(), 0, 1)
         #return stiffness * sin_inout(nt)
-        return stiffness * exp_out(nt)
+        return stiffness * (0.5 + exp_out(nt))
 
     def slak(stiffness, age):
         return stiffness
@@ -151,16 +151,17 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
 
     np.random.seed(config.seed)
 
-    simulation = TickSimulation(timedelta(days=1), stiffness=slak)
+    simulation = TickSimulation(timedelta(days=1), stiffness=stiffness)
     simulation.drag = 0.09
 
     # maps identifiers to timestamps, intensity tuples
-    files = {}
-    authors = {}
+    files = {}  # type: Dict[str, Tuple[datetime, float, Any]]
+    authors = {}  # type: Dict[str, Tuple[datetime, float]]
     def legend():
-        slugs = set(str(slug) for _, _, slug in files.values())
+        slugs = set(slug for _, _, slug in files.values())
         for slug in sorted(slugs):
-            yield config.render_properties_for('', slug).color, slug
+            prop = config.render_properties_for('', slug)
+            yield str(slug), prop.color
 
     labels = authors
 
@@ -180,7 +181,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
     commit_iterator = itertools.chain([first], commit_iterator)
 
     # create frame generator
-    render_instruction = Commit(None, None, None, None, None)
+    render_instruction = Commit(Slug('', ''), None, None, None, None)
     start_time = last_modified(first) - timedelta(days=2)
     commit_timestamps = ((last_modified(c), c) for c in commits)
     frame_timestamps = ((timestamp, render_instruction) for timestamp in steady(start_time, timedelta(days=0.5)))

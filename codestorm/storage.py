@@ -12,7 +12,7 @@ class Storage:
     def commits(self) -> Iterable[Commit]:
         return []
 
-    def store(self, commit: Commit, query: Dict[str, str]) -> None:
+    def store(self, commit: Commit) -> None:
         pass
 
     def delete(self, slug: Slug) -> None:
@@ -112,7 +112,7 @@ class SQLiteStorage(Storage):
         cursor.execute('DELETE FROM commits WHERE owner="{owner}" AND repository="{repository}"'.format(owner=slug.owner, repository=slug.repository))
         self.connection.commit()
     
-    def users(self) -> Iterable[NamedUser]:
+    def users(self) -> Iterable[str]:
         cursor = self.connection.cursor()
         rows = cursor.execute('SELECT DISTINCT committer FROM commits')
         users = set()

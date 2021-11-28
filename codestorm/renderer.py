@@ -15,8 +15,8 @@ def remove_prefix(text: str, prefixes: Iterable[str]) -> str:
 
 
 class Color:
-    BLACK = (0, 0, 0)
-    WHITE = (1, 1, 1)
+    BLACK = Color(0, 0, 0)
+    WHITE = Color(1, 1, 1)
     def __init__(self, r: float, g: float, b: float):
         self.r = r
         self.g = g
@@ -107,6 +107,7 @@ class Renderer:
         self.fg = fg
         self.bg = bg
         self.legend = legend
+        self.scale = 1
         self.properties = {}
     
     def render(self):
@@ -118,7 +119,7 @@ class Renderer:
         clear(surface, color=self.bg)
         
         mx, my = w // 2, h // 2
-        scale = min(w, h)
+        scale = min(w, h) * self.scale
         positions = self.simulation.positions()
         items = [(identifier, self.properties.get(identifier, self.default_properties), positions[index]) for identifier, index in self.simulation.bodies.items()]
 
@@ -152,7 +153,7 @@ class Renderer:
 
         # legend
         y = 48
-        for color, label in self.legend():
+        for label, color in self.legend():
             ctx.set_source_rgb(color.r, color.g, color.b)
             ctx.arc(16, y - 5, 6, 0, TAU)
             ctx.fill()

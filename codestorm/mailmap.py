@@ -10,7 +10,7 @@ class Mailmap:
 
     @staticmethod
     def load(path: str) -> 'Mailmap':
-        mailmap = {}
+        mailmap = {}  # type: Dict[str, str]
         if not path:
             return Mailmap(mailmap)
 
