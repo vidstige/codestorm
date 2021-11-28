@@ -76,13 +76,13 @@ class SQLiteStorage(Storage):
 
     def store(self, commit: Commit):
         cursor = self.connection.cursor()
-        cursor.execute("INSERT INTO commits (owner, repository, sha, timestamp, committer, files) values ('{owner}', '{repository}', '{sha}', '{timestamp}', '{committer}', '{files}')".format(
-            owner=commit.slug.owner,
-            repository=commit.slug.repository,
-            timestamp=commit.last_modified,
-            sha=commit.sha,
-            committer=commit.committer.login if commit.committer else None,
-            files=serialize_files(commit.files),
+        cursor.execute("INSERT INTO commits (owner, repository, sha, timestamp, committer, files) values (?, ?, ?, ?, ?, ?)", (
+            commit.slug.owner,
+            commit.slug.repository,
+            commit.sha,
+            commit.last_modified,
+            commit.committer.login if commit.committer else None,
+            serialize_files(commit.files),
         ))
         self.connection.commit()
 
