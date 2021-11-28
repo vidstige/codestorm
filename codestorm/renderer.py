@@ -15,8 +15,6 @@ def remove_prefix(text: str, prefixes: Iterable[str]) -> str:
 
 
 class Color:
-    BLACK = Color(0, 0, 0)
-    WHITE = Color(1, 1, 1)
     def __init__(self, r: float, g: float, b: float):
         self.r = r
         self.g = g
@@ -27,9 +25,11 @@ class Color:
         r, g, b = bytes.fromhex(remove_prefix(raw, ['#', '0x']))
         return Color(r / 255, g / 255, b / 255)
 
+BLACK = Color(0, 0, 0)
+WHITE = Color(1, 1, 1)
 
 
-def clear(target: cairo.ImageSurface, color: Color=Color.WHITE) -> None:
+def clear(target: cairo.ImageSurface, color: Color=WHITE) -> None:
     ctx = cairo.Context(target)
     ctx.rectangle(0, 0, target.get_width(), target.get_height())
     ctx.set_source_rgb(color.r, color.g, color.b)
