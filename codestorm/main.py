@@ -39,7 +39,7 @@ class TickSimulation(Simulation):
     def get_time(self) -> datetime:
         return datetime.fromtimestamp(self.t * self.tick_length.total_seconds())
 
-    def step(self, dt: timedelta):
+    def step_dt(self, dt: timedelta):
         super().step(dt.total_seconds() / self.tick_length.total_seconds())
 
 
@@ -193,9 +193,9 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
         #print(timestamp, commit, file=sys.stderr)
         # simulate until timestamp
         while timestamp - simulation.get_time() > timestep:
-            simulation.step(dt=timestep)
+            simulation.step_dt(dt=timestep)
         # time left is smaller than timestep
-        simulation.step(dt=timestamp - simulation.get_time())
+        simulation.step_dt(dt=timestamp - simulation.get_time())
 
         if commit == render_instruction:
             # this is a frame, just render it
