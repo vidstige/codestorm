@@ -31,7 +31,7 @@ class GithubAPI(Fetcher):
 
         g = Github(token)
 
-        repo = g.get_repo(slug)
+        repo = g.get_repo(str(slug))
         return (GithubAPI.to_commit(slug, c) for c in repo.get_commits())
 
 
@@ -69,10 +69,11 @@ class Cloning(Fetcher):
         process = subprocess.Popen(
             command, cwd=git_directory, stdout=subprocess.PIPE,
             env=dict(TZ='UTC'))
+        assert process.stdout
         lines = iter(process.stdout)
         next(lines)  # skip first boundary
-        for line in lines:
-            line = line.decode().strip()
+        for raw_line in lines:
+            line = raw_line.decode().strip()
             sha = line[:40]
             rest = line[41:]
             email, timestamp_raw = rest.split(',')
@@ -81,8 +82,8 @@ class Cloning(Fetcher):
             timestamp = datetime.fromtimestamp(int(timestamp_raw))
 
             files = []
-            for line in lines:
-                line = line.decode().strip()
+            for raw_line in lines:
+                line = raw_line.decode().strip()
                 if not line:
                     # skip empty line
                     continue
