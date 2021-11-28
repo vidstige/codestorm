@@ -23,6 +23,9 @@ class Slug:
     def __eq__(self, other) -> bool:
         return self._key() == other._key()
 
+    def __lt__(self, other) -> bool:
+        return self._key() < other._key()
+
     @staticmethod
     def from_string(s: str):
         parts = s.split('/')
