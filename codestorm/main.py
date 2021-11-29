@@ -307,7 +307,7 @@ def cli(cache: Path, mailmap: Optional[Path]):
 @click_config_file.configuration_option(exists=True, cmd_name='codestorm')
 @click.pass_context
 def render(
-        ctx,
+        ctx: click.Context,
         seed: int, framerate: float, resolution: Resolution,
         foreground: Optional[Color], background: Optional[Color],
         output: Optional[Path], repositories: Iterable[Slug]):
@@ -338,7 +338,7 @@ def _fetch_from(fetcher: Fetcher, storage: Storage, slug: Slug) -> None:
 @click.argument('repositories', type=Slug.from_string, nargs=-1)
 @click_config_file.configuration_option(exists=True, cmd_name='codestorm')
 @click.pass_context
-def fetch(ctx, repositories: Iterable[Slug]):
+def fetch(ctx: click.Context, repositories: Iterable[Slug]):
     cache = ctx.parent.params['cache']
     cache.mkdir(exist_ok=True)
     storage = SQLiteStorage(cache / 'codestorm.db')
@@ -381,7 +381,7 @@ def condition(s) -> Tuple[str, str]:
 @click.argument('conditions', type=condition, nargs=-1)
 @click_config_file.configuration_option(exists=True, cmd_name='codestorm')
 @click.pass_context
-def list(ctx, what, conditions):
+def list(ctx: click.Context, what, conditions):
     cache = ctx.parent.params['cache']
     cache.mkdir(exist_ok=True)
     storage = SQLiteStorage(cache / 'codestorm.db')
@@ -406,7 +406,7 @@ def list(ctx, what, conditions):
 @click.argument('repositories', type=Slug.from_string, nargs=-1)
 @click_config_file.configuration_option(exists=True, cmd_name='codestorm')
 @click.pass_context
-def delete(ctx, repositories: Iterable[Slug]):
+def delete(ctx: click.Context, repositories: Iterable[Slug]):
     cache = ctx.parent.params['cache']
     cache.mkdir(exist_ok=True)
     storage = SQLiteStorage(cache / 'codestorm.db')
