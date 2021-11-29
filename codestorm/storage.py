@@ -121,6 +121,11 @@ class SQLiteStorage(Storage):
             users.add(self.mailmap.lookup(comitter_login))
         return sorted(users)
 
+    def repositories(self) -> Iterable[Slug]:
+        cursor = self.connection.cursor()
+        rows = cursor.execute('SELECT DISTINCT owner, repository FROM commits')
+        return [Slug(owner, repo) for owner, repo in rows]
+
 
 class DirectoryStorage(Storage):
     def __init__(self, directory: Path):

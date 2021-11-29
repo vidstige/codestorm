@@ -396,6 +396,10 @@ def list(ctx, what, conditions):
     if what == 'users':
         for user in storage.users():
             print(user)
+    
+    if what == 'repos':
+        for repo in storage.repositories():
+            print(repo)
 
 
 @cli.command()
