@@ -131,8 +131,8 @@ import os
 def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
     # the duration a force is active
     spring_duration = timedelta(weeks=52)
-    file_duration = timedelta(weeks=28)
-    author_duration = timedelta(weeks=14)
+    file_duration = timedelta(weeks=32)
+    author_duration = timedelta(weeks=20)
 
     def stiffness(stiffness, age):
         # normalized time (0..1)
@@ -184,11 +184,12 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
     render_instruction = Commit(Slug('', ''), None, None, None, None)
     start_time = last_modified(first) - timedelta(days=2)
     commit_timestamps = ((last_modified(c), c) for c in commits)
-    frame_timestamps = ((timestamp, render_instruction) for timestamp in steady(start_time, timedelta(days=0.5)))
+    frame_timestamps = ((timestamp, render_instruction) for timestamp in steady(start_time, timedelta(days=0.8)))
 
     simulation.set_time(start_time)
 
-    timestep = timedelta(days=0.1)
+    #timestep = timedelta(days=0.1)
+    timestep = simulation.tick_length * 0.5
     for timestamp, commit in lazy_merge(commit_timestamps, frame_timestamps):            
         #print(timestamp, commit, file=sys.stderr)
         # simulate until timestamp
