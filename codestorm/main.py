@@ -33,7 +33,7 @@ class TickSimulation(Simulation):
         for spring_id, age in super().iter_springs():
             yield spring_id, age * self.tick_length
 
-    def set_time(self, time: datetime):
+    def set_datetime(self, time: datetime):
         super().set_time(time.timestamp() / self.tick_length.total_seconds())
 
     def get_time(self) -> datetime:
@@ -106,11 +106,14 @@ COLORS = [Color.parse(s) for s in COLORSTR]
 
 class Config:
     def __init__(
-            self, seed: int, resolution: Resolution, foreground: Optional[Color], background: Optional[Color]):
+            self, seed: int, resolution: Resolution,
+            foreground: Optional[Color], background: Optional[Color],
+            framerate: float):
         self.seed = seed
         self.resolution = resolution
         self.foreground = foreground
         self.background = background
+        self.framerate = framerate
         self.author_properties = RenderProperties(color=foreground, radius=3, z=-1)
         #self.file_properties = RenderProperties(color=Color.parse("#9c74c2"), radius=2)
         self._properties_cache = {}  # type: Dict[Slug, RenderProperties]
@@ -184,9 +187,9 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
     render_instruction = Commit(Slug('', ''), None, None, None, None)
     start_time = last_modified(first) - timedelta(days=2)
     commit_timestamps = ((last_modified(c), c) for c in commits)
-    frame_timestamps = ((timestamp, render_instruction) for timestamp in steady(start_time, timedelta(days=0.8)))
+    frame_timestamps = ((timestamp, render_instruction) for timestamp in steady(start_time, timedelta(days=0.7)))
 
-    simulation.set_time(start_time)
+    simulation.set_datetime(start_time)
 
     #timestep = timedelta(days=0.1)
     timestep = simulation.tick_length * 0.5
@@ -280,8 +283,8 @@ def _video_format_for(path: Optional[Path]) -> Optional[VideoFormat]:
     return None
 
 
-def _make_session(resolution: Resolution, output: Optional[Path]):
-    video_format = Raw('rgb32', resolution, 30)
+def _make_session(resolution: Resolution, framerate: float, output: Optional[Path]):
+    video_format = Raw('rgb32', resolution, framerate)
     if output:
         return FFmpeg().convert(
             video_format=video_format,
@@ -322,9 +325,10 @@ def render(
         seed=seed,
         resolution=resolution,
         foreground=foreground,
-        background=background
+        background=background,
+        framerate=30,
     )
-    with _make_session(resolution, Path(output) if output else output) as session:
+    with _make_session(resolution, config.framerate, Path(output) if output else output) as session:
         codestorm(commits, config, session.buffer)
 
 

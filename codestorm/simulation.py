@@ -27,7 +27,7 @@ class Simulation:
         # maps spring identifer to spring
         self.springs = {}  # type: Dict[str, Spring]
         self.stiffness = stiffness
-        self.drag = 0
+        self.drag = float(0)
 
     def set_time(self, t: float):
         self.t = t
