@@ -1,11 +1,14 @@
 import numpy as np
+from typing import Callable, Dict, Iterable, Tuple
 
+Stiffness = Callable[[np.ndarray, np.array], np.ndarray]
 
-def constant(stiffness, age):
+def constant(stiffness: np.ndarray, age: np.ndarray) -> np.ndarray:
     return stiffness
 
+Spring = Tuple[int, int, float, float, float]
 
-def replace_index(spring, a, b):
+def replace_index(spring: Spring, a: int, b: int) -> Spring:
     i, j, length, stiffness, timestamp = spring
     if i == a:
         i = b
@@ -15,19 +18,21 @@ def replace_index(spring, a, b):
 
 
 class Simulation:
-    def __init__(self, stiffness=constant):
-        self.t = 0
+    def __init__(self, stiffness: Stiffness=constant):
+        self.t = float(0)
         self.state = np.empty((0, 4))  # position + velocity
-        self.bodies = {}  # maps body identifer to index
+        # maps body identifer to index
+        self.bodies = {}  # type: Dict[str, int]
         self.masses = np.empty((0,))
-        self.springs = {}
+        # maps spring identifer to spring
+        self.springs = {}  # type: Dict[str, Spring]
         self.stiffness = stiffness
         self.drag = 0
 
-    def set_time(self, t):
+    def set_time(self, t: float):
         self.t = t
 
-    def add_body(self, position, velocity, identity, mass=1):
+    def add_body(self, position: np.ndarray, velocity: np.ndarray, identity: str, mass: float=1) -> str:
         state = np.hstack((position, velocity))
         assert state.shape[1] == self.state.shape[1]
         self.bodies[identity] = len(self.state)
@@ -35,7 +40,7 @@ class Simulation:
         self.masses = np.append(self.masses, mass)
         return identity
 
-    def remove_body(self, identity) -> None:
+    def remove_body(self, identity: str) -> None:
         i = self.bodies[identity]
         # 1. remove springs attached to body
         to_remove = [sid for sid, spring in self.springs.items() if i == spring[0] or i == spring[1]]
@@ -58,22 +63,22 @@ class Simulation:
         self.state = self.state[:-1]
         self.masses = self.masses[:-1]
 
-    def add_spring(self, identifier, a, b, length, stiffness=1) -> None:
+    def add_spring(self, identifier: str, a: str, b: str, length: float, stiffness: float=1) -> None:
         """Adds a spring"""
         i = self.bodies[a]
         j = self.bodies[b]
         self.springs[identifier] = (i, j, length, stiffness, self.t)
 
-    def remove_spring(self, identifier):
+    def remove_spring(self, identifier: str):
         del self.springs[identifier]
     
-    def iter_springs(self):
+    def iter_springs(self) -> Iterable[Tuple[str, float]]:
         """Iterate all spring ids and age"""
         t = self.t
         for spring_id, spring in self.springs.items():
             yield spring_id, t - spring[4]
 
-    def delta_state(self, state: np.array, t: float):
+    def delta_state(self, state: np.array, t: float) -> np.ndarray:
         # compute spring forces
 
         positions, velocities = np.hsplit(state, 2)
@@ -106,7 +111,7 @@ class Simulation:
         # compute acceleration
         return np.hstack((velocities, forces / self.masses[:, None]))
 
-    def positions(self):
+    def positions(self) -> np.ndarray:
         positions, _ = np.hsplit(self.state, 2)
         return positions
 
