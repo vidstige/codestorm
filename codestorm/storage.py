@@ -85,6 +85,15 @@ class SQLiteStorage(Storage):
             serialize_files(commit.files),
         ))
         self.connection.commit()
+    
+    def _from_row(self, row) -> Commit:
+        owner, repository, sha, timestamp, comitter_login, files_raw = row
+        return Commit(
+            slug=Slug(owner, repository),
+            last_modified=timestamp,
+            sha=sha,
+            committer=NamedUser(login=self.mailmap.lookup(comitter_login)),
+            files=deserialize_files(files_raw))
 
     def commits(self, query: Optional[Dict[str, str]]={}) -> Iterable[Commit]:
         cursor = self.connection.cursor()
@@ -94,19 +103,13 @@ class SQLiteStorage(Storage):
         rows = cursor.execute('SELECT owner, repository, sha, timestamp, committer, files FROM commits {where}ORDER BY timestamp'.format(where=where))
         for row in rows:
             try:
-                owner, repository, sha, timestamp, comitter_login, files_raw = row
-                commit = Commit(
-                    slug=Slug(owner, repository),
-                    last_modified=timestamp,
-                    sha=sha,
-                    committer=NamedUser(login=self.mailmap.lookup(comitter_login)),
-                    files=deserialize_files(files_raw))
+                commit = self._from_row(row)
                 if commit.last_modified:
                     yield commit
             except ValueError:
-                print(sha, repository)
+                print(row[2], row[1])
                 raise
-    
+
     def delete(self, slug: Slug) -> None:
         cursor = self.connection.cursor()
         cursor.execute('DELETE FROM commits WHERE owner="{owner}" AND repository="{repository}"'.format(owner=slug.owner, repository=slug.repository))
