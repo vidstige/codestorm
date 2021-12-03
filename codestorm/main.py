@@ -143,9 +143,6 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
         #return stiffness * sin_inout(nt)
         return stiffness * (0.5 + exp_out(nt))
 
-    def slak(stiffness, age):
-        return stiffness
-    
     aspect = config.resolution.aspect()
     def random_position():
         if aspect < 1:
@@ -155,7 +152,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
     np.random.seed(config.seed)
 
     simulation = TickSimulation(timedelta(days=1), stiffness=stiffness)
-    simulation.drag = 0.09
+    simulation.drag = 0.08
 
     # maps identifiers to timestamps, intensity tuples
     files = {}  # type: Dict[str, Tuple[datetime, float, Any]]
@@ -168,6 +165,9 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
 
     labels = authors
 
+    stats = {
+        'commits': 0
+    }
     renderer = Renderer(
         target,
         simulation,
@@ -175,8 +175,8 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
         config.resolution.pair(),
         bg=config.background,
         fg=config.foreground,
-        legend=legend)
-
+        legend=legend,
+        stats=stats)
 
     # find start time
     commit_iterator = iter(commits)
@@ -187,13 +187,16 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
     render_instruction = Commit(Slug('', ''), None, None, None, None)
     start_time = last_modified(first) - timedelta(days=2)
     commit_timestamps = ((last_modified(c), c) for c in commits)
-    frame_timestamps = ((timestamp, render_instruction) for timestamp in steady(start_time, timedelta(days=0.7)))
-
+    # real days per video-second
+    days_per_video_second = 22.5
+    # real time between frames
+    wallclock_frame_duration = timedelta(days=days_per_video_second / config.framerate)
+    frame_timestamps = ((timestamp, render_instruction) for timestamp in steady(start_time, wallclock_frame_duration))
     simulation.set_datetime(start_time)
 
     #timestep = timedelta(days=0.1)
     timestep = simulation.tick_length * 0.5
-    for timestamp, commit in lazy_merge(commit_timestamps, frame_timestamps):            
+    for timestamp, commit in lazy_merge(commit_timestamps, frame_timestamps):
         #print(timestamp, commit, file=sys.stderr)
         # simulate until timestamp
         while timestamp - simulation.get_time() > timestep:
@@ -214,7 +217,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
                 i = intensity_at(t - timestamp, intensity, file_duration)
                 render_properties = config.render_properties_for(filename, slug)
                 renderer.properties[filename] = from_intensity(render_properties, i)
-            
+
             renderer.render()
         else:
             # Add body for author (if needed) and update timestamp
@@ -265,6 +268,8 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
             for f in to_remove:
                 simulation.remove_body(f)
                 del authors[f]
+
+            stats['commits'] +=1
 
 
 def last_modified(commit) -> datetime:
@@ -394,9 +399,8 @@ def list(ctx: click.Context, what, conditions):
     
     if what == 'commits':
         query = dict(conditions)
-        print(query)
         for commit in storage.commits(query):
-            print(commit.sha, commit.slug, commit.committer)
+            print(commit.sha, commit.slug, commit.last_modified, commit.committer)
 
     if what == 'users':
         for user in storage.users():
