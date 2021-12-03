@@ -98,7 +98,7 @@ def layout(rectangles: Sequence[Tuple[str, Rectangle]]) -> Sequence[Tuple[str, R
 class Renderer:
     default_properties = RenderProperties(Color(0.42, 0.22, 1), 3)
     
-    def __init__(self, output, simulation, labels, resolution, fg=Color(1, 1, 1), bg=Color(0, 0, 0), legend=None):
+    def __init__(self, output, simulation, labels, resolution, fg=Color(1, 1, 1), bg=Color(0, 0, 0), legend=None, stats=None):
         self.output = output
         self.simulation = simulation
         self.labels = labels
@@ -109,7 +109,8 @@ class Renderer:
         self.legend = legend
         self.scale = 1
         self.properties = {}
-    
+        self.stats = stats or {}
+
     def render(self):
         surface = self.surface
 
@@ -160,6 +161,16 @@ class Renderer:
             ctx.move_to(24, y)
             ctx.set_source_rgb(self.fg.r, self.fg.g, self.fg.b)
             ctx.show_text(label)
+            y += 16
+        
+        # stats
+        y = 48
+        ctx.set_source_rgb(self.fg.r, self.fg.g, self.fg.b)
+        for key, value in self.stats.items():
+            text = "{value} {key}".format(key=key, value=value)
+            extents = ctx.text_extents(text)
+            ctx.move_to(w - 24 - extents.width, y)
+            ctx.show_text(text)
             y += 16
 
         self.output.write(surface.get_data())
