@@ -320,7 +320,7 @@ def render(
         seed: int, framerate: float, resolution: Resolution,
         foreground: Optional[Color], background: Optional[Color],
         output: Optional[Path], repositories: Iterable[Slug]):
-
+    assert ctx.parent
     cache = ctx.parent.params['cache']
     storage = SQLiteStorage(cache / 'codestorm.db')
     storage.mailmap = Mailmap.load(ctx.parent.params['mailmap'])
@@ -349,6 +349,7 @@ def _fetch_from(fetcher: Fetcher, storage: Storage, slug: Slug) -> None:
 @click_config_file.configuration_option(exists=True, cmd_name='codestorm')
 @click.pass_context
 def fetch(ctx: click.Context, repositories: Iterable[Slug]):
+    assert ctx.parent
     cache = ctx.parent.params['cache']
     cache.mkdir(exist_ok=True)
     storage = SQLiteStorage(cache / 'codestorm.db')
@@ -392,6 +393,7 @@ def condition(s) -> Tuple[str, str]:
 @click_config_file.configuration_option(exists=True, cmd_name='codestorm')
 @click.pass_context
 def list(ctx: click.Context, what, conditions):
+    assert ctx.parent
     cache = ctx.parent.params['cache']
     cache.mkdir(exist_ok=True)
     storage = SQLiteStorage(cache / 'codestorm.db')
@@ -416,6 +418,7 @@ def list(ctx: click.Context, what, conditions):
 @click_config_file.configuration_option(exists=True, cmd_name='codestorm')
 @click.pass_context
 def delete(ctx: click.Context, repositories: Iterable[Slug]):
+    assert ctx.parent
     cache = ctx.parent.params['cache']
     cache.mkdir(exist_ok=True)
     storage = SQLiteStorage(cache / 'codestorm.db')
