@@ -76,7 +76,7 @@ class SQLiteStorage(Storage):
 
     def store(self, commit: Commit):
         cursor = self.connection.cursor()
-        cursor.execute("INSERT INTO commits (owner, repository, sha, timestamp, committer, files) values (?, ?, ?, ?, ?, ?)", (
+        cursor.execute("INSERT OR IGNORE INTO commits (owner, repository, sha, timestamp, committer, files) values (?, ?, ?, ?, ?, ?)", (
             commit.slug.owner,
             commit.slug.repository,
             commit.sha,
