@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Callable, Dict, Iterable, Tuple
 
-Stiffness = Callable[[np.ndarray, np.array], np.ndarray]
+Stiffness = Callable[[np.ndarray, np.ndarray], np.ndarray]
 
 def constant(stiffness: np.ndarray, age: np.ndarray) -> np.ndarray:
     return stiffness
@@ -78,7 +78,7 @@ class Simulation:
         for spring_id, spring in self.springs.items():
             yield spring_id, t - spring[4]
 
-    def delta_state(self, state: np.array, t: float) -> np.ndarray:
+    def delta_state(self, state: np.ndarray, t: float) -> np.ndarray:
         # compute spring forces
 
         positions, velocities = np.hsplit(state, 2)
