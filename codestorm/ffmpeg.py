@@ -78,8 +78,9 @@ class Session:
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.process.stdin.flush()
         self.process.stdin.close()
-        self.process.kill()
+        self.process.wait()
 
 
 class FFmpeg:
