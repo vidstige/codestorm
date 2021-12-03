@@ -1,6 +1,6 @@
 from pathlib import Path
 import subprocess
-from typing import BinaryIO, List, Optional, Union, Tuple
+from typing import BinaryIO, List, Optional, Union, Sequence, Tuple
 
 
 class Resolution:
@@ -54,16 +54,18 @@ class H264(VideoFormat):
         self.preset = preset
 
     def arguments(self) -> List[str]:
-        return [
-            '-c:v', 'libx264',
-            '-preset', self.preset,
+        args = ['-c:v', 'libx264']
+        if self.preset:
+            args += ['-preset', self.preset]
+        args += [
             '-crf', str(self.crf),
             '-pix_fmt', self.pixel_format
         ]
+        return args
 
 
 class Session:
-    def __init__(self, command: List[Union[str, Path]]) -> None:
+    def __init__(self, command: Sequence[Union[str, Path]]) -> None:
         self.process = None
         self.command = command
     
@@ -97,7 +99,7 @@ class FFmpeg:
         if target:
             if target_format:
                 command += target_format.arguments()
-            command += [target]
+            command += [str(target)]
         return Session(command)
 
 #
