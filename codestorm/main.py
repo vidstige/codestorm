@@ -283,7 +283,7 @@ def _video_format_for(path: Optional[Path]) -> Optional[VideoFormat]:
     """Returns suitable video format for the given path"""
     if path is None:
         return None
-    if path.suffix in ('.mkv',):
+    if path.suffix in ('.mp4',):
         return H264(pixel_format='yuv420p', crf=18, preset='slow')
     return None
 
