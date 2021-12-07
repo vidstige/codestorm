@@ -125,6 +125,7 @@ class Renderer:
         items = [(identifier, self.properties.get(identifier, self.default_properties), positions[index]) for identifier, index in self.simulation.bodies.items()]
 
         labels = []
+        ctx.set_font_size(18)
         for identifier, properties, (x, y) in sorted(items, key=lambda item: item[1].z, reverse=True):
             ctx.save()
             ctx.translate(mx + x * scale, my + y * scale)
@@ -147,30 +148,34 @@ class Renderer:
             ctx.show_text(label)
 
         # overlay
+        font_size = 20
+        row_height = int(font_size * 1.5)
+        x_margin = row_height
         ctx.set_source_rgb(self.fg.r, self.fg.g, self.fg.b)
-        ctx.move_to(8, 24)
-        ctx.set_font_size(16)
+        ctx.move_to(8, row_height)
+        ctx.set_font_size(font_size)
         ctx.show_text(self.simulation.get_time().date().isoformat())
 
         # legend
-        y = 48
+        y = 2 * row_height
+        radius = 6
         for label, color in self.legend():
             ctx.set_source_rgb(color.r, color.g, color.b)
-            ctx.arc(16, y - 5, 6, 0, TAU)
+            ctx.arc(font_size, y - (font_size - radius) / 2, radius, 0, TAU)
             ctx.fill()
-            ctx.move_to(24, y)
+            ctx.move_to(x_margin, y)
             ctx.set_source_rgb(self.fg.r, self.fg.g, self.fg.b)
             ctx.show_text(label)
-            y += 16
+            y += font_size
         
         # stats
-        y = 48
+        y = 2 * row_height
         ctx.set_source_rgb(self.fg.r, self.fg.g, self.fg.b)
         for key, value in self.stats.items():
             text = "{value} {key}".format(key=key, value=value)
             extents = ctx.text_extents(text)
-            ctx.move_to(w - 24 - extents.width, y)
+            ctx.move_to(w - x_margin - extents.width, y)
             ctx.show_text(text)
-            y += 16
+            y += font_size
 
         self.output.write(surface.get_data())
