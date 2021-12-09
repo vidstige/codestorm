@@ -98,10 +98,11 @@ def from_intensity(original: RenderProperties, intensity: Intensity) -> RenderPr
 
 
 COLORSTR = [
-    "#ffb900", "#ff8c00", "#f7630c", "#ca5010", "#da3b01", "#ef6950", "#d13438", "#ff4343",
-    "#e74856", "#e81123", "#ea005e", "#c30052", "#e3008c", "#bf0077", "#c239b3", "#9a0089",
-    "#0078d7", "#0063b1", "#8e8cd8", "#6b69d6", "#8764b8", "#744da9", "#b146c2", "#881798",
-    "#0099bc", "#2d7d9a", "#00b7c3", "#038387", "#00b294", "#018574", "#00cc6a", "#10893e"]
+    "#e81123", "#ea005e", "#c30052", "#e3008c", "#bf0077", "#c239b3", "#9a0089", "#e74856",
+    "#ff8c00", "#f7630c", "#ca5010", "#da3b01", "#ef6950", "#d13438", "#ff4343", "#ffb900",
+    "#0099bc", "#00b7c3", "#038387", "#00b294", "#018574", "#00cc6a", "#10893e", "#2d7d9a",
+    "#0063b1", "#8e8cd8", "#6b69d6", "#8764b8", "#744da9", "#b146c2", "#881798", "#0078d7",
+]    
 COLORS = [Color.parse(s) for s in COLORSTR]
 
 class Config:
@@ -134,12 +135,15 @@ import os
 def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
     # the duration a force is active
     spring_duration = timedelta(weeks=52)
-    file_duration = timedelta(weeks=32)
-    author_duration = timedelta(weeks=20)
+    file_duration = timedelta(weeks=40)
+    author_duration = timedelta(weeks=26)
+    K = 0.005
+    author_mass = 18
+    file_mass = 1
 
     def stiffness(stiffness, age):
         # normalized time (0..1)
-        nt = np.clip(age / spring_duration.total_seconds(), 0, 1)
+        nt = np.clip((age / spring_duration.total_seconds()) - 0.3, 0, 1)
         #return stiffness * sin_inout(nt)
         return stiffness * (0.5 + exp_out(nt))
 
@@ -223,7 +227,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
             # Add body for author (if needed) and update timestamp
             author = commit.committer.login
             if author not in simulation.bodies:
-                simulation.add_body(random_position(), np.zeros((1, 2)), author, mass=20)
+                simulation.add_body(random_position(), np.zeros((1, 2)), author, mass=author_mass)
 
                 # add springs between all other authors
                 #for peer in authors:
@@ -240,7 +244,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
             for phile in commit.files or tuple():
                 filename = os.path.basename(phile.filename)
                 if filename not in simulation.bodies:
-                    simulation.add_body(random_position(), np.zeros((1, 2)), filename, mass=1)
+                    simulation.add_body(random_position(), np.zeros((1, 2)), filename, mass=file_mass)
 
                 pt, pi, ps = files.get(filename, (simulation.get_time(), 0, commit.slug))
                 spillover = intensity_at(age=simulation.get_time() - pt, intensity=pi, duration=author_duration)
@@ -251,7 +255,7 @@ def codestorm(commits: Iterable[Commit], config: Config, target: BinaryIO):
                 # spring id
                 sid = '{author}-{filename}'.format(author=author, filename=filename)
                 # add spring forces or update timestamps
-                simulation.add_spring(sid, author, filename, np.random.normal(0.2, 0.01), 0.005)
+                simulation.add_spring(sid, author, filename, np.random.normal(0.2, 0.01), K)
                       
             # remove old spring forces
             to_remove = [spring_id for spring_id, age in simulation.iter_springs() if age > spring_duration]
